@@ -6,8 +6,8 @@
 	<img v-if="reaction == 'hmm'" src="https://twemoji.maxcdn.com/2/svg/1f914.svg" :alt="$t('@.reactions.hmm')">
 	<img v-if="reaction == 'surprise'" src="https://twemoji.maxcdn.com/2/svg/1f62e.svg" :alt="$t('@.reactions.surprise')">
 	<img v-if="reaction == 'congrats'" src="/assets/reactions/6.svg" :alt="$t('@.reactions.congrats')">
-	<img v-if="reaction == 'angry'" src="/assets/reactions/7.svg" :alt="$t('@.reactions.angry')">
-	<img v-if="reaction == 'confused'" src="/assets/reactions/8.svg" :alt="$t('@.reactions.confused')">
+	<img v-if="reaction == 'confused'" src="/assets/reactions/7.svg" :alt="$t('@.reactions.confused')">
+	<img v-if="reaction == 'angry'" src="/assets/reactions/8.svg" :alt="$t('@.reactions.angry')">
 	<img v-if="reaction == 'rip'" src="/assets/reactions/9.svg" :alt="$t('@.reactions.rip')">
 	<template v-if="reaction == 'pudding'">
 		<img v-if="$store.getters.isSignedIn && $store.state.settings.iLikeSushi" src="/assets/reactions/0.svg" :alt="$t('@.reactions.pudding')">
