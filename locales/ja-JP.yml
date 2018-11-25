@@ -82,8 +82,8 @@ common:
     hmm: "ふぅ～む"
     surprise: "わお"
     congrats: "star(紫)"
-    angry: "star(青)"
-    confused: "star(赤)"
+    angry: "star(赤)"
+    confused: "star(青)"
     rip: "star(緑)"
     pudding: "star(黄)"
 
