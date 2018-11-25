@@ -5,13 +5,13 @@
 	<img v-if="reaction == 'laugh'" src="https://twemoji.maxcdn.com/2/svg/1f606.svg" :alt="$t('@.reactions.laugh')">
 	<img v-if="reaction == 'hmm'" src="https://twemoji.maxcdn.com/2/svg/1f914.svg" :alt="$t('@.reactions.hmm')">
 	<img v-if="reaction == 'surprise'" src="https://twemoji.maxcdn.com/2/svg/1f62e.svg" :alt="$t('@.reactions.surprise')">
-	<img v-if="reaction == 'congrats'" src="https://twemoji.maxcdn.com/2/svg/1f389.svg" :alt="$t('@.reactions.congrats')">
-	<img v-if="reaction == 'angry'" src="https://twemoji.maxcdn.com/2/svg/1f4a2.svg" :alt="$t('@.reactions.angry')">
-	<img v-if="reaction == 'confused'" src="https://twemoji.maxcdn.com/2/svg/1f625.svg" :alt="$t('@.reactions.confused')">
-	<img v-if="reaction == 'rip'" src="https://twemoji.maxcdn.com/2/svg/1f607.svg" :alt="$t('@.reactions.rip')">
+	<img v-if="reaction == 'congrats'" src="/assets/reactions/6.png" :alt="$t('@.reactions.congrats')">
+	<img v-if="reaction == 'angry'" src="/assets/reactions/7.png" :alt="$t('@.reactions.angry')">
+	<img v-if="reaction == 'confused'" src="/assets/reactions/8.png" :alt="$t('@.reactions.confused')">
+	<img v-if="reaction == 'rip'" src="/assets/reactions/9.png" :alt="$t('@.reactions.rip')">
 	<template v-if="reaction == 'pudding'">
-		<img v-if="$store.getters.isSignedIn && $store.state.settings.iLikeSushi" src="https://twemoji.maxcdn.com/2/svg/1f363.svg" :alt="$t('@.reactions.pudding')">
-		<img v-else src="https://twemoji.maxcdn.com/2/svg/1f36e.svg" :alt="$t('@.reactions.pudding')">
+		<img v-if="$store.getters.isSignedIn && $store.state.settings.iLikeSushi" src="/assets/reactions/0.png" :alt="$t('@.reactions.pudding')">
+		<img v-else src="/assets/reactions/0.png" :alt="$t('@.reactions.pudding')">
 	</template>
 </span>
 </template>
