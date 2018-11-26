@@ -212,10 +212,35 @@ describe('Text', () => {
 				], tokens);
 			});
 
+			it('with brackets', () => {
+				const tokens = analyze('(#foo)');
+				assert.deepEqual([
+					text('('),
+					node('hashtag', { hashtag: 'foo' }),
+					text(')'),
+				], tokens);
+			});
+
+			it('with brackets (space before)', () => {
+				const tokens = analyze('(bar #foo)');
+				assert.deepEqual([
+					text('(bar '),
+					node('hashtag', { hashtag: 'foo' }),
+					text(')'),
+				], tokens);
+			});
+
 			it('disallow number only', () => {
 				const tokens = analyze('#123');
 				assert.deepEqual([
 					text('#123'),
+				], tokens);
+			});
+
+			it('disallow number only (with brackets)', () => {
+				const tokens = analyze('(#123)');
+				assert.deepEqual([
+					text('(#123)'),
 				], tokens);
 			});
 		});
@@ -424,6 +449,15 @@ describe('Text', () => {
 				], tokens);
 			});
 
+			it('simple (with silent flag)', () => {
+				const tokens = analyze('?[foo](https://example.com)');
+				assert.deepEqual([
+					nodeWithChildren('link', [
+						text('foo')
+					], { url: 'https://example.com', silent: true })
+				], tokens);
+			});
+
 			it('in text', () => {
 				const tokens = analyze('before[foo](https://example.com)after');
 				assert.deepEqual([
@@ -604,6 +638,17 @@ describe('Text', () => {
 						text('foo')
 					]),
 					text('after')
+				], tokens);
+			});
+		});
+
+		describe('center', () => {
+			it('simple', () => {
+				const tokens = analyze('<center>foo</center>');
+				assert.deepEqual([
+					nodeWithChildren('center', [
+						text('foo')
+					]),
 				], tokens);
 			});
 		});
