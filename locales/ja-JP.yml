@@ -81,11 +81,11 @@ common:
     laugh: "笑"
     hmm: "ふぅ～む"
     surprise: "わお"
-    congrats: "star(紫)"
-    angry: "star(赤)"
-    confused: "star(青)"
-    rip: "star(緑)"
-    pudding: "star(黄)"
+    congrats: "パープルスター"
+    angry: "レッドスター"
+    confused: "ブルースター"
+    rip: "グリーンスター"
+    pudding: "スター"
 
   note-visibility:
     public: "公開"
