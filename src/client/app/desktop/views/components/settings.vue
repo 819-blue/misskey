@@ -108,7 +108,7 @@
 				<ui-switch v-model="showFullAcct">{{ $t('@.show-full-acct') }}</ui-switch>
 				<ui-switch v-model="showVia">{{ $t('@.show-via') }}</ui-switch>
 				<ui-switch v-model="useOsDefaultEmojis">{{ $t('@.use-os-default-emojis') }}</ui-switch>
-				<ui-switch v-model="iLikeSushi">{{ $t('@.i-like-sushi') }}</ui-switch>
+				<!-- <ui-switch v-model="iLikeSushi">{{ $t('@.i-like-sushi') }}</ui-switch> > -->
 			</section>
 			<section>
 				<ui-switch v-model="suggestRecentHashtags">{{ $t('@.suggest-recent-hashtags') }}</ui-switch>

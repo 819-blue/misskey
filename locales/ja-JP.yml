@@ -83,11 +83,11 @@ common:
     laugh: "笑"
     hmm: "ふぅ～む"
     surprise: "わお"
-    congrats: "おめでとう"
-    angry: "おこ"
-    confused: "こまこまのこまり"
-    rip: "RIP"
-    pudding: "Pudding"
+    congrats: "パープルスター"
+    angry: "レッドスター"
+    confused: "ブルースター"
+    rip: "グリーンスター"
+    pudding: "スター"
 
   note-visibility:
     public: "公開"
