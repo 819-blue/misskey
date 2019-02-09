@@ -1,14 +1,14 @@
-import $ from 'cafy'; import ID, { transform } from '../../../../../misc/cafy-id';
+import $ from 'cafy';
+import ID, { transform } from '../../../../../misc/cafy-id';
 import Message from '../../../../../models/messaging-message';
 import { isValidText } from '../../../../../models/messaging-message';
-import History from '../../../../../models/messaging-history';
 import User from '../../../../../models/user';
 import Mute from '../../../../../models/mute';
 import DriveFile from '../../../../../models/drive-file';
 import { pack } from '../../../../../models/messaging-message';
-import { publishMainStream } from '../../../../../stream';
-import { publishMessagingStream, publishMessagingIndexStream } from '../../../../../stream';
-import pushSw from '../../../../../push-sw';
+import { publishMainStream } from '../../../../../services/stream';
+import { publishMessagingStream, publishMessagingIndexStream } from '../../../../../services/stream';
+import pushSw from '../../../../../services/push-notification';
 import define from '../../../define';
 
 export const meta = {
@@ -114,6 +114,7 @@ export default define(meta, (ps, user) => new Promise(async (res, rej) => {
 	// 2秒経っても(今回作成した)メッセージが既読にならなかったら「未読のメッセージがありますよ」イベントを発行する
 	setTimeout(async () => {
 		const freshMessage = await Message.findOne({ _id: message._id }, { isRead: true });
+		if (freshMessage == null) return; // メッセージが削除されている場合もある
 		if (!freshMessage.isRead) {
 			//#region ただしミュートされているなら発行しない
 			const mute = await Mute.find({
@@ -130,30 +131,4 @@ export default define(meta, (ps, user) => new Promise(async (res, rej) => {
 			pushSw(message.recipientId, 'unreadMessagingMessage', messageObj);
 		}
 	}, 2000);
-
-	// 履歴作成(自分)
-	History.update({
-		userId: user._id,
-		partnerId: recipient._id
-	}, {
-		updatedAt: new Date(),
-		userId: user._id,
-		partnerId: recipient._id,
-		messageId: message._id
-	}, {
-		upsert: true
-	});
-
-	// 履歴作成(相手)
-	History.update({
-		userId: recipient._id,
-		partnerId: user._id
-	}, {
-		updatedAt: new Date(),
-		userId: recipient._id,
-		partnerId: user._id,
-		messageId: message._id
-	}, {
-		upsert: true
-	});
 }));

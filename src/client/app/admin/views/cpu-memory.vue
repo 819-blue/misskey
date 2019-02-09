@@ -19,7 +19,7 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import * as ApexCharts from 'apexcharts';
+import ApexCharts from 'apexcharts';
 
 export default Vue.extend({
 	props: ['connection'],
@@ -132,7 +132,9 @@ export default Vue.extend({
 		},
 
 		onStatsLog(statsLog) {
-			statsLog.reverse().forEach(stats => this.onStats(stats));
+			for (const stats of statsLog.reverse()) {
+				this.onStats(stats);
+			}
 		}
 	}
 });

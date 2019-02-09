@@ -1,7 +1,8 @@
 import * as mongo from 'mongodb';
-const deepcopy = require('deepcopy');
+import * as deepcopy from 'deepcopy';
 import { pack as packFolder } from './drive-folder';
-import monkDb, { nativeDbConn } from '../db/mongodb';
+import { pack as packUser } from './user';
+import monkDb, { nativeDbConn, dbLogger } from '../db/mongodb';
 import isObjectId from '../misc/is-objectid';
 import getDriveFileUrl, { getOriginalUrl } from '../misc/get-drive-file-url';
 
@@ -10,6 +11,7 @@ DriveFile.createIndex('md5');
 DriveFile.createIndex('metadata.uri');
 DriveFile.createIndex('metadata.userId');
 DriveFile.createIndex('metadata.folderId');
+DriveFile.createIndex('metadata._user.host');
 export default DriveFile;
 
 export const DriveFileChunk = monkDb.get('driveFiles.chunks');
@@ -131,6 +133,7 @@ export const packMany = (
 	options?: {
 		detail?: boolean
 		self?: boolean,
+		withUser?: boolean,
 	}
 ) => {
 	return Promise.all(files.map(f => pack(f, options)));
@@ -144,6 +147,7 @@ export const pack = (
 	options?: {
 		detail?: boolean,
 		self?: boolean,
+		withUser?: boolean,
 	}
 ) => new Promise<any>(async (resolve, reject) => {
 	const opts = Object.assign({
@@ -168,7 +172,7 @@ export const pack = (
 
 	// (データベースの欠損などで)ファイルがデータベース上に見つからなかったとき
 	if (_file == null) {
-		console.warn(`[DAMAGED DB] (missing) pkg: driveFile :: ${file}`);
+		dbLogger.warn(`[DAMAGED DB] (missing) pkg: driveFile :: ${file}`);
 		return resolve(null);
 	}
 
@@ -206,6 +210,11 @@ export const pack = (
 			);
 		}
 		*/
+	}
+
+	if (opts.withUser) {
+		// Populate user
+		_target.user = await packUser(_file.metadata.userId);
 	}
 
 	delete _target.withoutChunks;

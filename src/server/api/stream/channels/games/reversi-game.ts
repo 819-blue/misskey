@@ -2,7 +2,7 @@ import autobind from 'autobind-decorator';
 import * as CRC32 from 'crc-32';
 import * as mongo from 'mongodb';
 import ReversiGame, { pack } from '../../../../../models/games/reversi/game';
-import { publishReversiGameStream } from '../../../../../stream';
+import { publishReversiGameStream } from '../../../../../services/stream';
 import Reversi from '../../../../../games/reversi/core';
 import * as maps from '../../../../../games/reversi/maps';
 import Channel from '../../channel';
@@ -242,9 +242,9 @@ export default class extends Channel {
 			loopedBoard: game.settings.loopedBoard
 		});
 
-		game.logs.forEach(log => {
+		for (const log of game.logs) {
 			o.put(log.color, log.pos);
-		});
+		}
 
 		const myColor =
 			(game.user1Id.equals(this.user._id) && game.black == 1) || (game.user2Id.equals(this.user._id) && game.black == 2)

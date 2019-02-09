@@ -3,7 +3,7 @@ import User, { isLocalUser, isRemoteUser } from '../../models/user';
 import Following from '../../models/following';
 import renderPerson from '../../remote/activitypub/renderer/person';
 import renderUpdate from '../../remote/activitypub/renderer/update';
-import packAp from '../../remote/activitypub/renderer';
+import { renderActivity } from '../../remote/activitypub/renderer';
 import { deliver } from '../../queue';
 
 export async function publishToFollowers(userId: mongo.ObjectID) {
@@ -19,20 +19,20 @@ export async function publishToFollowers(userId: mongo.ObjectID) {
 
 	// フォロワーがリモートユーザーかつ投稿者がローカルユーザーならUpdateを配信
 	if (isLocalUser(user)) {
-		followers.map(following => {
+		for (const following of followers) {
 			const follower = following._follower;
 
 			if (isRemoteUser(follower)) {
 				const inbox = follower.sharedInbox || follower.inbox;
 				if (!queue.includes(inbox)) queue.push(inbox);
 			}
-		});
+		}
 
 		if (queue.length > 0) {
-			const content = packAp(renderUpdate(await renderPerson(user), user));
-			queue.forEach(inbox => {
+			const content = renderActivity(renderUpdate(await renderPerson(user), user));
+			for (const inbox of queue) {
 				deliver(user, content, inbox);
-			});
+			}
 		}
 	}
 }

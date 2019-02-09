@@ -1,11 +1,16 @@
-import $ from 'cafy'; import ID, { transform } from '../../../../misc/cafy-id';
+import $ from 'cafy';
+import ID, { transform } from '../../../../misc/cafy-id';
 import User, { isValidName, isValidDescription, isValidLocation, isValidBirthday, pack } from '../../../../models/user';
-import { publishMainStream } from '../../../../stream';
+import { publishMainStream } from '../../../../services/stream';
 import DriveFile from '../../../../models/drive-file';
 import acceptAllFollowRequests from '../../../../services/following/requests/accept-all';
 import { publishToFollowers } from '../../../../services/i/update';
 import define from '../../define';
 import getDriveFileUrl from '../../../../misc/get-drive-file-url';
+import { parse, parsePlain } from '../../../../mfm/parse';
+import extractEmojis from '../../../../misc/extract-emojis';
+import extractHashtags from '../../../../misc/extract-hashtags';
+import * as langmap from 'langmap';
 
 export const meta = {
 	desc: {
@@ -29,6 +34,13 @@ export const meta = {
 			validator: $.str.optional.nullable.pipe(isValidDescription),
 			desc: {
 				'ja-JP': 'アカウントの説明や自己紹介'
+			}
+		},
+
+		lang: {
+			validator: $.str.optional.nullable.or(Object.keys(langmap)),
+			desc: {
+				'ja-JP': '言語'
 			}
 		},
 
@@ -84,6 +96,13 @@ export const meta = {
 			}
 		},
 
+		autoAcceptFollowed: {
+			validator: $.bool.optional,
+			desc: {
+				'ja-JP': 'フォローしているユーザーからのフォローリクエストを自動承認するか'
+			}
+		},
+
 		isBot: {
 			validator: $.bool.optional,
 			desc: {
@@ -121,6 +140,7 @@ export default define(meta, (ps, user, app) => new Promise(async (res, rej) => {
 
 	if (ps.name !== undefined) updates.name = ps.name;
 	if (ps.description !== undefined) updates.description = ps.description;
+	if (ps.lang !== undefined) updates.lang = ps.lang;
 	if (ps.location !== undefined) updates['profile.location'] = ps.location;
 	if (ps.birthday !== undefined) updates['profile.birthday'] = ps.birthday;
 	if (ps.avatarId !== undefined) updates.avatarId = ps.avatarId;
@@ -129,6 +149,7 @@ export default define(meta, (ps, user, app) => new Promise(async (res, rej) => {
 	if (typeof ps.isLocked == 'boolean') updates.isLocked = ps.isLocked;
 	if (typeof ps.isBot == 'boolean') updates.isBot = ps.isBot;
 	if (typeof ps.carefulBot == 'boolean') updates.carefulBot = ps.carefulBot;
+	if (typeof ps.autoAcceptFollowed == 'boolean') updates.autoAcceptFollowed = ps.autoAcceptFollowed;
 	if (typeof ps.isCat == 'boolean') updates.isCat = ps.isCat;
 	if (typeof ps.autoWatch == 'boolean') updates['settings.autoWatch'] = ps.autoWatch;
 	if (typeof ps.alwaysMarkNsfw == 'boolean') updates['settings.alwaysMarkNsfw'] = ps.alwaysMarkNsfw;
@@ -181,6 +202,27 @@ export default define(meta, (ps, user, app) => new Promise(async (res, rej) => {
 			}
 		}
 	}
+
+	//#region emojis/tags
+	if (updates.name != null || updates.description != null) {
+		let emojis = [] as string[];
+		let tags = [] as string[];
+
+		if (updates.name != null) {
+			const tokens = parsePlain(updates.name);
+			emojis = emojis.concat(extractEmojis(tokens));
+		}
+
+		if (updates.description != null) {
+			const tokens = parse(updates.description);
+			emojis = emojis.concat(extractEmojis(tokens));
+			tags = extractHashtags(tokens);
+		}
+
+		updates.emojis = emojis;
+		updates.tags = tags;
+	}
+	//#endregion
 
 	await User.update(user._id, {
 		$set: updates

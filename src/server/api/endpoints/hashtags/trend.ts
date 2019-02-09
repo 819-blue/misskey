@@ -40,28 +40,25 @@ export default define(meta, () => new Promise(async (res, rej) => {
 		$group: {
 			_id: { tag: '$tagsLower', userId: '$userId' }
 		}
-	}]) as Array<{
+	}]) as {
 		_id: {
 			tag: string;
 			userId: any;
 		}
-	}>;
+	}[];
 	//#endregion
 
 	if (data.length == 0) {
 		return res([]);
 	}
 
-	const tags: Array<{
+	const tags: {
 		name: string;
 		count: number;
-	}> = [];
+	}[] = [];
 
 	// カウント
-	data.map(x => x._id).forEach(x => {
-		// ブラックリストに登録されているタグなら弾く
-		if (hidedTags.includes(x.tag)) return;
-
+	for (const x of data.map(x => x._id).filter(x => !hidedTags.includes(x.tag))) {
 		const i = tags.findIndex(tag => tag.name == x.tag);
 		if (i != -1) {
 			tags[i].count++;
@@ -71,7 +68,7 @@ export default define(meta, () => new Promise(async (res, rej) => {
 				count: 1
 			});
 		}
-	});
+	}
 
 	// 最低要求投稿者数を下回るならカットする
 	const limitedTags = tags.filter(tag => tag.count >= requiredUsers);
@@ -111,7 +108,7 @@ export default define(meta, () => new Promise(async (res, rej) => {
 	//#endregion
 
 	//#region 2(または3)で話題と判定されたタグそれぞれについて過去の投稿数グラフを取得する
-	const countPromises: Array<Promise<any[]>> = [];
+	const countPromises: Promise<any[]>[] = [];
 
 	const range = 20;
 

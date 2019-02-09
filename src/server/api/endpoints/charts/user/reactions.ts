@@ -1,9 +1,11 @@
 import $ from 'cafy';
 import define from '../../../define';
-import perUserReactionsChart from '../../../../../chart/per-user-reactions';
+import perUserReactionsChart from '../../../../../services/chart/per-user-reactions';
 import ID, { transform } from '../../../../../misc/cafy-id';
 
 export const meta = {
+	stability: 'stable',
+
 	desc: {
 		'ja-JP': 'ユーザーごとの被リアクション数のチャートを取得します。'
 	},

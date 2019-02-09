@@ -22,6 +22,7 @@ export default Vue.extend({
 <style lang="stylus" scoped>
 .ui-card
 	margin 16px
+	max-width 850px
 	color var(--faceText)
 	background var(--face)
 	border-radius var(--round)
@@ -40,7 +41,7 @@ export default Vue.extend({
 
 	> section
 		padding 20px 16px
-		border-top solid 1px var(--faceDivider)
+		border-top solid var(--lineWidth) var(--faceDivider)
 
 		@media (min-width 500px)
 			padding 32px

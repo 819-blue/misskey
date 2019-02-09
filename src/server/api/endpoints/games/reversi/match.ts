@@ -1,8 +1,9 @@
-import $ from 'cafy'; import ID, { transform } from '../../../../../misc/cafy-id';
+import $ from 'cafy';
+import ID, { transform } from '../../../../../misc/cafy-id';
 import Matching, { pack as packMatching } from '../../../../../models/games/reversi/matching';
 import ReversiGame, { pack as packGame } from '../../../../../models/games/reversi/game';
 import User from '../../../../../models/user';
-import { publishMainStream, publishReversiStream } from '../../../../../stream';
+import { publishMainStream, publishReversiStream } from '../../../../../services/stream';
 import { eighteight } from '../../../../../games/reversi/maps';
 import define from '../../../define';
 
@@ -66,7 +67,7 @@ export default define(meta, (ps, user) => new Promise(async (res, rej) => {
 		});
 
 		if (other == 0) {
-			publishMainStream(user._id, 'reversi_no_invites');
+			publishMainStream(user._id, 'reversiNoInvites');
 		}
 	} else {
 		// Fetch child

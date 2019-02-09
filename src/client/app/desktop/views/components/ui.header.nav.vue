@@ -61,7 +61,7 @@ export default Vue.extend({
 			this.connection = this.$root.stream.useSharedConnection('main');
 
 			this.connection.on('reversiInvited', this.onReversiInvited);
-			this.connection.on('reversi_no_invites', this.onReversiNoInvites);
+			this.connection.on('reversiNoInvites', this.onReversiNoInvites);
 		}
 	},
 	beforeDestroy() {
@@ -147,7 +147,7 @@ export default Vue.extend({
 				> [data-icon]:last-child
 					margin-left 5px
 					font-size 10px
-					color var(--primary)
+					color var(--notificationIndicator)
 
 					@media (max-width 1100px)
 						margin-left -5px

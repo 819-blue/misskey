@@ -4,6 +4,7 @@
 		<span :data-active="mode == 'default'" @click="mode = 'default'"><fa :icon="['far', 'comment-alt']"/> {{ $t('default') }}</span>
 		<span :data-active="mode == 'with-replies'" @click="mode = 'with-replies'"><fa icon="comments"/> {{ $t('with-replies') }}</span>
 		<span :data-active="mode == 'with-media'" @click="mode = 'with-media'"><fa :icon="['far', 'images']"/> {{ $t('with-media') }}</span>
+		<span :data-active="mode == 'my-posts'" @click="mode = 'my-posts'"><fa icon="user"/> {{ $t('my-posts') }}</span>
 	</header>
 	<mk-notes ref="timeline" :more="existMore ? more : null">
 		<p class="empty" slot="empty"><fa :icon="['far', 'comments']"/>{{ $t('empty') }}</p>
@@ -65,6 +66,7 @@ export default Vue.extend({
 					limit: fetchLimit + 1,
 					untilDate: this.date ? this.date.getTime() : new Date().getTime() + 1000 * 86400 * 365,
 					includeReplies: this.mode == 'with-replies',
+					includeMyRenotes: this.mode != 'my-posts',
 					withFiles: this.mode == 'with-media'
 				}).then(notes => {
 					if (notes.length == fetchLimit + 1) {
@@ -85,6 +87,7 @@ export default Vue.extend({
 				userId: this.user.id,
 				limit: fetchLimit + 1,
 				includeReplies: this.mode == 'with-replies',
+				includeMyRenotes: this.mode != 'my-posts',
 				withFiles: this.mode == 'with-media',
 				untilDate: new Date((this.$refs.timeline as any).tail().createdAt).getTime()
 			});
@@ -95,7 +98,9 @@ export default Vue.extend({
 				} else {
 					this.existMore = false;
 				}
-				notes.forEach(n => (this.$refs.timeline as any).append(n));
+				for (const n of notes) {
+					(this.$refs.timeline as any).append(n);
+				}
 				this.moreFetching = false;
 			});
 
@@ -151,18 +156,20 @@ export default Vue.extend({
 				&:hover
 					color var(--desktopTimelineSrcHover)
 
-	> .empty
-		display block
-		margin 0 auto
-		padding 32px
-		max-width 400px
-		text-align center
-		color #999
+	> .mk-notes
 
-		> [data-icon]
+		> .empty
 			display block
-			margin-bottom 16px
-			font-size 3em
-			color #ccc
+			margin 0 auto
+			padding 32px
+			max-width 400px
+			text-align center
+			color var(--text)
+
+			> [data-icon]
+				display block
+				margin-bottom 16px
+				font-size 3em
+				color var(--faceHeaderText);
 
 </style>

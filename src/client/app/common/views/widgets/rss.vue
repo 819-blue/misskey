@@ -77,7 +77,7 @@ export default define({
 				display block
 				padding 4px 0
 				color var(--text)
-				border-bottom dashed 1px var(--faceDivider)
+				border-bottom dashed var(--lineWidth) var(--faceDivider)
 
 				&:last-child
 					border-bottom none
@@ -86,7 +86,7 @@ export default define({
 			margin 0
 			padding 16px
 			text-align center
-			color #aaa
+			color var(--text)
 
 			> [data-icon]
 				margin-right 4px

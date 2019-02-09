@@ -4,15 +4,16 @@ import * as mongodb from 'mongodb';
 import DriveFile, { getDriveFileBucket } from '../../models/drive-file';
 import DriveFileThumbnail, { getDriveFileThumbnailBucket } from '../../models/drive-file-thumbnail';
 import DriveFileWebpublic, { getDriveFileWebpublicBucket } from '../../models/drive-file-webpublic';
+import { serverLogger } from '..';
 
 const assets = `${__dirname}/../../server/file/assets/`;
 
-const commonReadableHandlerGenerator = (ctx: Koa.Context) => (e: Error): void => {
-	console.error(e);
+const commonReadableHandlerGenerator = (ctx: Koa.BaseContext) => (e: Error): void => {
+	serverLogger.error(e);
 	ctx.status = 500;
 };
 
-export default async function(ctx: Koa.Context) {
+export default async function(ctx: Koa.BaseContext) {
 	// Validate id
 	if (!mongodb.ObjectID.isValid(ctx.params.id)) {
 		ctx.throw(400, 'incorrect id');
@@ -26,13 +27,13 @@ export default async function(ctx: Koa.Context) {
 
 	if (file == null) {
 		ctx.status = 404;
-		await send(ctx, '/dummy.png', { root: assets });
+		await send(ctx as any, '/dummy.png', { root: assets });
 		return;
 	}
 
 	if (file.metadata.deletedAt) {
 		ctx.status = 410;
-		await send(ctx, '/tombstone.png', { root: assets });
+		await send(ctx as any, '/tombstone.png', { root: assets });
 		return;
 	}
 
@@ -64,7 +65,12 @@ export default async function(ctx: Koa.Context) {
 			const bucket = await getDriveFileThumbnailBucket();
 			ctx.body = bucket.openDownloadStream(thumb._id);
 		} else {
-			await sendRaw();
+			if (file.contentType.startsWith('image/')) {
+				await sendRaw();
+			} else {
+				ctx.status = 404;
+				await send(ctx as any, '/dummy.png', { root: assets });
+			}
 		}
 	} else if ('web' in ctx.query) {
 		const web = await DriveFileWebpublic.findOne({

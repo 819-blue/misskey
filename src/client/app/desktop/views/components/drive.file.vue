@@ -34,8 +34,10 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import * as anime from 'animejs';
+import anime from 'animejs';
 import copyToClipboard from '../../../common/scripts/copy-to-clipboard';
+import updateAvatar from '../../api/update-avatar';
+import updateBanner from '../../api/update-banner';
 
 export default Vue.extend({
 	i18n: i18n('desktop/views/components/drive.file.vue'),
@@ -148,12 +150,15 @@ export default Vue.extend({
 		},
 
 		rename() {
-			this.$input({
+			this.$root.dialog({
 				title: this.$t('contextmenu.rename-file'),
-				placeholder: this.$t('contextmenu.input-new-file-name'),
-				default: this.file.name,
-				allowEmpty: false
-			}).then(name => {
+				input: {
+					placeholder: this.$t('contextmenu.input-new-file-name'),
+					default: this.file.name,
+					allowEmpty: false
+				}
+			}).then(({ canceled, result: name }) => {
+				if (canceled) return;
 				this.$root.api('drive/files/update', {
 					fileId: this.file.id,
 					name: name
@@ -170,18 +175,18 @@ export default Vue.extend({
 
 		copyUrl() {
 			copyToClipboard(this.file.url);
-			this.$root.alert({
+			this.$root.dialog({
 				title: this.$t('contextmenu.copied'),
 				text: this.$t('contextmenu.copied-url-to-clipboard')
 			});
 		},
 
 		setAsAvatar() {
-			this.$updateAvatar(this.file);
+			updateAvatar(this.$root)(this.file);
 		},
 
 		setAsBanner() {
-			this.$updateBanner(this.file);
+			updateBanner(this.$root)(this.file);
 		},
 
 		addApp() {

@@ -32,6 +32,13 @@ export const meta = {
 			}
 		},
 
+		disableGlobalTimeline: {
+			validator: $.bool.optional.nullable,
+			desc: {
+				'ja-JP': 'グローバルタイムラインを無効にするか否か'
+			}
+		},
+
 		hidedTags: {
 			validator: $.arr($.str).optional.nullable,
 			desc: {
@@ -39,10 +46,24 @@ export const meta = {
 			}
 		},
 
+		mascotImageUrl: {
+			validator: $.str.optional.nullable,
+			desc: {
+				'ja-JP': 'インスタンスキャラクター画像のURL'
+			}
+		},
+
 		bannerUrl: {
 			validator: $.str.optional.nullable,
 			desc: {
 				'ja-JP': 'インスタンスのバナー画像URL'
+			}
+		},
+
+		errorImageUrl: {
+			validator: $.str.optional.nullable,
+			desc: {
+				'ja-JP': 'インスタンスのエラー画像URL'
 			}
 		},
 
@@ -228,7 +249,77 @@ export const meta = {
 			desc: {
 				'ja-JP': '外部ユーザーレコメンデーションのタイムアウト (ミリ秒)'
 			}
-		}
+		},
+
+		enableEmail: {
+			validator: $.bool.optional,
+			desc: {
+				'ja-JP': 'メール配信を有効にするか否か'
+			}
+		},
+
+		email: {
+			validator: $.str.optional.nullable,
+			desc: {
+				'ja-JP': 'メール配信する際に利用するメールアドレス'
+			}
+		},
+
+		smtpSecure: {
+			validator: $.bool.optional,
+			desc: {
+				'ja-JP': 'SMTPサーバがSSLを使用しているか否か'
+			}
+		},
+
+		smtpHost: {
+			validator: $.str.optional.nullable,
+			desc: {
+				'ja-JP': 'SMTPサーバのホスト'
+			}
+		},
+
+		smtpPort: {
+			validator: $.num.optional.nullable,
+			desc: {
+				'ja-JP': 'SMTPサーバのポート'
+			}
+		},
+
+		smtpUser: {
+			validator: $.str.optional.nullable,
+			desc: {
+				'ja-JP': 'SMTPサーバのユーザー名'
+			}
+		},
+
+		smtpPass: {
+			validator: $.str.optional.nullable,
+			desc: {
+				'ja-JP': 'SMTPサーバのパスワード'
+			}
+		},
+
+		enableServiceWorker: {
+			validator: $.bool.optional,
+			desc: {
+				'ja-JP': 'ServiceWorkerを有効にするか否か'
+			}
+		},
+
+		swPublicKey: {
+			validator: $.str.optional.nullable,
+			desc: {
+				'ja-JP': 'ServiceWorkerのVAPIDキーペアの公開鍵'
+			}
+		},
+
+		swPrivateKey: {
+			validator: $.str.optional.nullable,
+			desc: {
+				'ja-JP': 'ServiceWorkerのVAPIDキーペアの秘密鍵'
+			}
+		},
 	}
 };
 
@@ -247,8 +338,16 @@ export default define(meta, (ps) => new Promise(async (res, rej) => {
 		set.disableLocalTimeline = ps.disableLocalTimeline;
 	}
 
+	if (typeof ps.disableGlobalTimeline === 'boolean') {
+		set.disableGlobalTimeline = ps.disableGlobalTimeline;
+	}
+
 	if (Array.isArray(ps.hidedTags)) {
 		set.hidedTags = ps.hidedTags;
+	}
+
+	if (ps.mascotImageUrl !== undefined) {
+		set.mascotImageUrl = ps.mascotImageUrl;
 	}
 
 	if (ps.bannerUrl !== undefined) {
@@ -357,6 +456,50 @@ export default define(meta, (ps) => new Promise(async (res, rej) => {
 
 	if (ps.externalUserRecommendationTimeout !== undefined) {
 		set.externalUserRecommendationTimeout = ps.externalUserRecommendationTimeout;
+	}
+
+	if (ps.enableEmail !== undefined) {
+		set.enableEmail = ps.enableEmail;
+	}
+
+	if (ps.email !== undefined) {
+		set.email = ps.email;
+	}
+
+	if (ps.smtpSecure !== undefined) {
+		set.smtpSecure = ps.smtpSecure;
+	}
+
+	if (ps.smtpHost !== undefined) {
+		set.smtpHost = ps.smtpHost;
+	}
+
+	if (ps.smtpPort !== undefined) {
+		set.smtpPort = ps.smtpPort;
+	}
+
+	if (ps.smtpUser !== undefined) {
+		set.smtpUser = ps.smtpUser;
+	}
+
+	if (ps.smtpPass !== undefined) {
+		set.smtpPass = ps.smtpPass;
+	}
+
+	if (ps.errorImageUrl !== undefined) {
+		set.errorImageUrl = ps.errorImageUrl;
+	}
+
+	if (ps.enableServiceWorker !== undefined) {
+		set.enableServiceWorker = ps.enableServiceWorker;
+	}
+
+	if (ps.swPublicKey !== undefined) {
+		set.swPublicKey = ps.swPublicKey;
+	}
+
+	if (ps.swPrivateKey !== undefined) {
+		set.swPrivateKey = ps.swPrivateKey;
 	}
 
 	await Meta.update({}, {

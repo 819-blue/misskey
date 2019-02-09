@@ -8,14 +8,15 @@ import VueRouter from 'vue-router';
 import VAnimateCss from 'v-animate-css';
 import VModal from 'vue-js-modal';
 import VueI18n from 'vue-i18n';
+import SequentialEntrance from 'vue-sequential-entrance';
 
 import VueHotkey from './common/hotkey';
 import App from './app.vue';
 import checkForUpdate from './common/scripts/check-for-update';
 import MiOS from './mios';
-import { clientVersion as version, codename, lang } from './config';
+import { clientVersion as version, codename, lang, locale } from './config';
 import { builtinThemes, lightTheme, applyTheme } from './theme';
-import Alert from './common/views/components/alert.vue';
+import Dialog from './common/views/components/dialog.vue';
 
 if (localStorage.getItem('theme') == null) {
 	applyTheme(lightTheme);
@@ -122,6 +123,8 @@ import {
 	faArrowLeft,
 	faMapMarker,
 	faRobot,
+	faHourglassHalf,
+	faGavel
 } from '@fortawesome/free-solid-svg-icons';
 
 import {
@@ -143,6 +146,9 @@ import {
 	faCalendarAlt as farCalendarAlt,
 	faHdd as farHdd,
 	faMoon as farMoon,
+	faPlayCircle as farPlayCircle,
+	faLightbulb as farLightbulb,
+	faStickyNote as farStickyNote,
 } from '@fortawesome/free-regular-svg-icons';
 
 import {
@@ -248,7 +254,9 @@ library.add(
 	faSync,
 	faArrowLeft,
 	faMapMarker,
-  faRobot,
+	faRobot,
+	faHourglassHalf,
+	faGavel,
 
 	farBell,
 	farEnvelope,
@@ -268,6 +276,9 @@ library.add(
 	farCalendarAlt,
 	farHdd,
 	farMoon,
+	farPlayCircle,
+	farLightbulb,
+	farStickyNote,
 
 	fabTwitter,
 	fabGithub,
@@ -281,6 +292,7 @@ Vue.use(VAnimateCss);
 Vue.use(VModal);
 Vue.use(VueHotkey);
 Vue.use(VueI18n);
+Vue.use(SequentialEntrance);
 
 Vue.component('fa', FontAwesomeIcon);
 
@@ -312,7 +324,7 @@ Vue.mixin({
 
 console.info(`Misskey v${version} (${codename})`);
 console.info(
-	'%c%i18n:common.do-not-copy-paste%',
+	`%c${locale['common']['do-not-copy-paste']}`,
 	'color: red; background: yellow; font-size: 16px; font-weight: bold;');
 
 // BootTimer解除
@@ -375,13 +387,27 @@ export default (callback: (launch: (router: VueRouter) => [Vue, MiOS]) => void, 
 			});
 			//#endregion
 
+			// Reapply current theme
+			try {
+				const themeName = os.store.state.device.darkmode ? os.store.state.device.darkTheme : os.store.state.device.lightTheme;
+				const themes = os.store.state.device.themes.concat(builtinThemes);
+				const theme = themes.find(t => t.id == themeName);
+				if (theme) {
+					applyTheme(theme);
+				}
+			} catch (e) {
+				console.log(`Cannot reapply theme. ${e}`);
+			}
+
 			//#region shadow
 			const shadow = '0 3px 8px rgba(0, 0, 0, 0.2)';
 			const shadowRight = '4px 0 4px rgba(0, 0, 0, 0.1)';
 			const shadowLeft = '-4px 0 4px rgba(0, 0, 0, 0.1)';
-			if (os.store.state.settings.useShadow) document.documentElement.style.setProperty('--shadow', shadow);
-			if (os.store.state.settings.useShadow) document.documentElement.style.setProperty('--shadowRight', shadowRight);
-			if (os.store.state.settings.useShadow) document.documentElement.style.setProperty('--shadowLeft', shadowLeft);
+			if (os.store.state.settings.useShadow) {
+				document.documentElement.style.setProperty('--shadow', shadow);
+				document.documentElement.style.setProperty('--shadowRight', shadowRight);
+				document.documentElement.style.setProperty('--shadowLeft', shadowLeft);
+			}
 			os.store.watch(s => {
 				return s.settings.useShadow;
 			}, v => {
@@ -401,17 +427,18 @@ export default (callback: (launch: (router: VueRouter) => [Vue, MiOS]) => void, 
 			});
 			//#endregion
 
+			//#region line width
+			document.documentElement.style.setProperty('--lineWidth', `${os.store.state.device.lineWidth}px`);
+			os.store.watch(s => {
+				return s.device.lineWidth;
+			}, v => {
+				document.documentElement.style.setProperty('--lineWidth', `${os.store.state.device.lineWidth}px`);
+			});
+			//#endregion
+
 			// Navigation hook
 			router.beforeEach((to, from, next) => {
-				if (os.store.state.navHook) {
-					if (os.store.state.navHook(to)) {
-						next(false);
-					} else {
-						next();
-					}
-				} else {
-					next();
-				}
+				next(os.store.state.navHook && os.store.state.navHook(to) ? false : undefined);
 			});
 
 			document.addEventListener('visibilitychange', () => {
@@ -451,11 +478,11 @@ export default (callback: (launch: (router: VueRouter) => [Vue, MiOS]) => void, 
 						document.body.appendChild(x.$el);
 						return x;
 					},
-					alert(opts) {
+					dialog(opts) {
+						const vm = this.new(Dialog, opts);
 						return new Promise((res) => {
-							const vm = this.new(Alert, opts);
-							vm.$once('ok', () => res(true));
-							vm.$once('cancel', () => res(false));
+							vm.$once('ok', result => res({ canceled: false, result }));
+							vm.$once('cancel', () => res({ canceled: true }));
 						});
 					}
 				},

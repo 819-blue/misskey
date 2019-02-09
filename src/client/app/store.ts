@@ -3,7 +3,6 @@ import createPersistedState from 'vuex-persistedstate';
 import * as nestedProperty from 'nested-property';
 
 import MiOS from './mios';
-import { hostname } from './config';
 import { erase } from '../../prelude/array';
 import getNoteSummary from '../../misc/get-note-summary';
 
@@ -12,6 +11,7 @@ const defaultSettings = {
 	mobileHome: [],
 	deck: null,
 	deckNav: true,
+	keepCw: false,
 	tagTimelines: [],
 	fetchOnScroll: true,
 	showMaps: true,
@@ -35,25 +35,27 @@ const defaultSettings = {
 	iLikeSushi: false,
 	rememberNoteVisibility: false,
 	defaultNoteVisibility: 'public',
+	webSearchEngine: 'https://www.google.com/?#q={{query}}',
 	mutedWords: [],
 	games: {
 		reversi: {
 			showBoardLabels: false,
-			useContrastStones: false
+			useAvatarStones: true,
 		}
 	}
 };
 
 const defaultDeviceSettings = {
 	reduceMotion: false,
-	apiViaStream: true,
 	autoPopout: false,
 	darkmode: false,
 	darkTheme: 'dark',
 	lightTheme: 'light',
+	lineWidth: 1,
 	themes: [],
 	enableSounds: true,
 	soundVolume: 0.5,
+	mediaVolume: 0.5,
 	lang: null,
 	preventUpdate: false,
 	debug: false,
@@ -63,10 +65,12 @@ const defaultDeviceSettings = {
 	postStyle: 'standard',
 	navbar: 'top',
 	deckColumnAlign: 'center',
+	deckColumnWidth: 'normal',
 	mobileNotificationPosition: 'bottom',
 	deckTemporaryColumn: null,
 	deckDefault: false,
-	useOsDefaultEmojis: false
+	useOsDefaultEmojis: false,
+	disableShowingAnimatedImages: false
 };
 
 export default (os: MiOS) => new Vuex.Store({
@@ -128,13 +132,14 @@ export default (os: MiOS) => new Vuex.Store({
 
 		logout(ctx) {
 			ctx.commit('updateI', null);
-			document.cookie = `i=; domain=${hostname}; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+			document.cookie = 'i=;';
+			localStorage.removeItem('i');
 		},
 
 		mergeMe(ctx, me) {
-			Object.entries(me).forEach(([key, value]) => {
+			for (const [key, value] of Object.entries(me)) {
 				ctx.commit('updateIKeyValue', { key, value });
-			});
+			}
 
 			if (me.clientSettings) {
 				ctx.dispatch('settings/merge', me.clientSettings);
@@ -211,11 +216,11 @@ export default (os: MiOS) => new Vuex.Store({
 
 					//#region Deck
 					if (state.deck && state.deck.columns) {
-						state.deck.columns.filter(c => c.type == 'widgets').forEach(c => {
-							c.widgets.forEach(w => {
-								if (w.id == x.id) w.data = x.data;
-							});
-						});
+						for (const c of state.deck.columns.filter(c => c.type == 'widgets')) {
+							for (const w of c.widgets.filter(w => w.id == x.id)) {
+								w.data = x.data;
+							}
+						}
 					}
 					//#endregion
 				},
@@ -341,9 +346,9 @@ export default (os: MiOS) => new Vuex.Store({
 			actions: {
 				merge(ctx, settings) {
 					if (settings == null) return;
-					Object.entries(settings).forEach(([key, value]) => {
+					for (const [key, value] of Object.entries(settings)) {
 						ctx.commit('set', { key, value });
-					});
+					}
 				},
 
 				set(ctx, x) {

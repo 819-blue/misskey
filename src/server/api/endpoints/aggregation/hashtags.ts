@@ -29,28 +29,25 @@ export default define(meta, (ps) => new Promise(async (res, rej) => {
 		$group: {
 			_id: { tag: '$tagsLower', userId: '$userId' }
 		}
-	}]) as Array<{
+	}]) as {
 		_id: {
 			tag: string;
 			userId: any;
 		}
-	}>;
+	}[];
 	//#endregion
 
 	if (data.length == 0) {
 		return res([]);
 	}
 
-	let tags: Array<{
+	let tags: {
 		name: string;
 		count: number;
-	}> = [];
+	}[] = [];
 
 	// カウント
-	data.map(x => x._id).forEach(x => {
-		// ブラックリストに登録されているタグなら弾く
-		if (hidedTags.includes(x.tag)) return;
-
+	for (const x of data.map(x => x._id).filter(x => !hidedTags.includes(x.tag))) {
 		const i = tags.findIndex(tag => tag.name == x.tag);
 		if (i != -1) {
 			tags[i].count++;
@@ -60,10 +57,10 @@ export default define(meta, (ps) => new Promise(async (res, rej) => {
 				count: 1
 			});
 		}
-	});
+	}
 
 	// タグを人気順に並べ替え
-	tags = tags.sort((a, b) => b.count - a.count);
+	tags.sort((a, b) => b.count - a.count);
 
 	tags = tags.slice(0, 30);
 

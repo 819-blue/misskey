@@ -15,13 +15,31 @@ export const darkTheme: Theme = require('../theme/dark.json5');
 export const pinkTheme: Theme = require('../theme/pink.json5');
 export const blackTheme: Theme = require('../theme/black.json5');
 export const halloweenTheme: Theme = require('../theme/halloween.json5');
+export const cafeTheme: Theme = require('../theme/cafe.json5');
+export const japaneseSushiSetTheme: Theme = require('../theme/japanese-sushi-set.json5');
+export const gruvboxDarkTheme: Theme = require('../theme/gruvbox-dark.json5');
+export const monokaiTheme: Theme = require('../theme/monokai.json5');
+export const colorfulTheme: Theme = require('../theme/colorful.json5');
+export const rainyTheme: Theme = require('../theme/rainy.json5');
+export const mauveTheme: Theme = require('../theme/mauve.json5');
+export const grayTheme: Theme = require('../theme/gray.json5');
+export const tweetDeckTheme: Theme = require('../theme/tweet-deck.json5');
 
 export const builtinThemes = [
 	lightTheme,
 	darkTheme,
 	pinkTheme,
 	blackTheme,
-	halloweenTheme
+	halloweenTheme,
+	cafeTheme,
+	japaneseSushiSetTheme,
+	gruvboxDarkTheme,
+	monokaiTheme,
+	colorfulTheme,
+	rainyTheme,
+	mauveTheme,
+	grayTheme,
+	tweetDeckTheme,
 ];
 
 export function applyTheme(theme: Theme, persisted = true) {
@@ -36,9 +54,9 @@ export function applyTheme(theme: Theme, persisted = true) {
 
 	const props = compile(_theme);
 
-	Object.entries(props).forEach(([k, v]) => {
+	for (const [k, v] of Object.entries(props)) {
 		document.documentElement.style.setProperty(`--${k}`, v.toString());
-	});
+	}
 
 	if (persisted) {
 		localStorage.setItem('theme', JSON.stringify(props));
@@ -74,10 +92,9 @@ function compile(theme: Theme): { [key: string]: string } {
 
 	const props = {};
 
-	Object.entries(theme.props).forEach(([k, v]) => {
-		const c = getColor(v);
-		props[k] = genValue(c);
-	});
+	for (const [k, v] of Object.entries(theme.props)) {
+		props[k] = genValue(getColor(v));
+	}
 
 	const primary = getColor(props['primary']);
 
@@ -86,12 +103,12 @@ function compile(theme: Theme): { [key: string]: string } {
 		props['primaryAlpha0' + i] = genValue(color);
 	}
 
-	for (let i = 1; i < 100; i++) {
+	for (let i = 5; i < 100; i += 5) {
 		const color = primary.clone().lighten(i);
 		props['primaryLighten' + i] = genValue(color);
 	}
 
-	for (let i = 1; i < 100; i++) {
+	for (let i = 5; i < 100; i += 5) {
 		const color = primary.clone().darken(i);
 		props['primaryDarken' + i] = genValue(color);
 	}

@@ -1,4 +1,5 @@
-import $ from 'cafy'; import ID, { transform } from '../../../../../../misc/cafy-id';
+import $ from 'cafy';
+import ID, { transform } from '../../../../../../misc/cafy-id';
 import ReversiGame, { pack } from '../../../../../../models/games/reversi/game';
 import Reversi from '../../../../../../games/reversi/core';
 import define from '../../../../define';
@@ -25,9 +26,8 @@ export default define(meta, (ps, user) => new Promise(async (res, rej) => {
 		loopedBoard: game.settings.loopedBoard
 	});
 
-	game.logs.forEach(log => {
+	for (const log of game.logs)
 		o.put(log.color, log.pos);
-	});
 
 	const packed = await pack(game, user);
 

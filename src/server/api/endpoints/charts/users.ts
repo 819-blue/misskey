@@ -1,8 +1,10 @@
 import $ from 'cafy';
 import define from '../../define';
-import usersChart from '../../../../chart/users';
+import usersChart from '../../../../services/chart/users';
 
 export const meta = {
+	stability: 'stable',
+
 	desc: {
 		'ja-JP': 'ユーザーのチャートを取得します。'
 	},

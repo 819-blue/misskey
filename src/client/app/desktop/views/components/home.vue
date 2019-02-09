@@ -26,7 +26,6 @@
 					<option value="hashtags">{{ $t('@.widgets.hashtags') }}</option>
 					<option value="posts-monitor">{{ $t('@.widgets.posts-monitor') }}</option>
 					<option value="server">{{ $t('@.widgets.server') }}</option>
-					<option value="donation">{{ $t('@.widgets.donation') }}</option>
 					<option value="nav">{{ $t('@.widgets.nav') }}</option>
 					<option value="tips">{{ $t('@.widgets.tips') }}</option>
 				</select>
@@ -95,7 +94,6 @@ const defaultDesktopHomeWidgets = {
 		'users',
 		'polls',
 		'server',
-		'donation',
 		'nav',
 		'tips'
 	]
@@ -104,23 +102,23 @@ const defaultDesktopHomeWidgets = {
 //#region Construct home data
 const _defaultDesktopHomeWidgets = [];
 
-defaultDesktopHomeWidgets.left.forEach(widget => {
+for (const widget of defaultDesktopHomeWidgets.left) {
 	_defaultDesktopHomeWidgets.push({
 		name: widget,
 		id: uuid(),
 		place: 'left',
 		data: {}
 	});
-});
+}
 
-defaultDesktopHomeWidgets.right.forEach(widget => {
+for (const widget of defaultDesktopHomeWidgets.right) {
 	_defaultDesktopHomeWidgets.push({
 		name: widget,
 		id: uuid(),
 		place: 'right',
 		data: {}
 	});
-});
+}
 //#endregion
 
 export default Vue.extend({
@@ -186,7 +184,7 @@ export default Vue.extend({
 
 	methods: {
 		hint() {
-			this.$root.alert({
+			this.$root.dialog({
 				title: this.$t('@.customization-tips.title'),
 				text: this.$t('@.customization-tips.paragraph')
 			});
@@ -222,8 +220,8 @@ export default Vue.extend({
 			const left = this.widgets.left;
 			const right = this.widgets.right;
 			this.$store.commit('settings/setHome', left.concat(right));
-			left.forEach(w => w.place = 'left');
-			right.forEach(w => w.place = 'right');
+			for (const w of left) w.place = 'left';
+			for (const w of right) w.place = 'right';
 			this.$root.api('i/update_home', {
 				home: this.home
 			});

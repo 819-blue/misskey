@@ -5,7 +5,9 @@
 			<mk-avatar class="avatar" :user="note.user" target="_blank"/>
 			<div class="body">
 				<header>
-					<router-link class="name" :to="note.user | userPage" v-user-preview="note.user.id">{{ note.user | userName }}</router-link>
+					<router-link class="name" :to="note.user | userPage" v-user-preview="note.user.id">
+						<mk-user-name :user="note.user"/>
+					</router-link>
 					<span class="username">@{{ note.user | acct }}</span>
 					<div class="info">
 						<router-link class="created-at" :to="note | notePage">
@@ -14,7 +16,7 @@
 					</div>
 				</header>
 				<div class="text">
-					<misskey-flavored-markdown v-if="note.text" :text="note.text" :author="note.user" :custom-emojis="note.emojis"/>
+					<mfm v-if="note.text" :text="note.cw != null ? note.cw : note.text" :author="note.user" :custom-emojis="note.emojis"/>
 				</div>
 			</div>
 		</div>

@@ -2,17 +2,13 @@
 <mk-ui>
 	<span slot="header"><span style="margin-right:4px;"><fa icon="cog"/></span>{{ $t('settings') }}</span>
 	<main>
-		<div class="signin-as" v-html="this.$t('signed-in-as').replace('{}', `<b>${name}</b>`)"></div>
-
+		<div class="signed-in-as">
+			<mfm :text="$t('signed-in-as').replace('{}', name)" :should-break="false" :plain-text="true" :custom-emojis="$store.state.i.emojis"/>
+		</div>
 		<div>
 			<x-profile-editor/>
 
-			<ui-card>
-				<div slot="title"><fa icon="palette"/> {{ $t('theme') }}</div>
-				<section>
-					<x-theme/>
-				</section>
-			</ui-card>
+			<x-theme/>
 
 			<ui-card>
 				<div slot="title"><fa icon="poll-h"/> {{ $t('design') }}</div>
@@ -20,6 +16,12 @@
 				<section>
 					<ui-switch v-model="darkmode">{{ $t('dark-mode') }}</ui-switch>
 					<ui-switch v-model="circleIcons">{{ $t('circle-icons') }}</ui-switch>
+					<section>
+						<header>{{ $t('@.line-width') }}</header>
+						<ui-radio v-model="lineWidth" :value="0.5">{{ $t('@.line-width-thin') }}</ui-radio>
+						<ui-radio v-model="lineWidth" :value="1">{{ $t('@.line-width-normal') }}</ui-radio>
+						<ui-radio v-model="lineWidth" :value="2">{{ $t('@.line-width-thick') }}</ui-radio>
+					</section>
 					<ui-switch v-model="reduceMotion">{{ $t('@.reduce-motion') }} ({{ $t('@.this-setting-is-this-device-only') }})</ui-switch>
 					<ui-switch v-model="contrastedAcct">{{ $t('contrasted-acct') }}</ui-switch>
 					<ui-switch v-model="showFullAcct">{{ $t('@.show-full-acct') }}</ui-switch>
@@ -27,12 +29,14 @@
 					<ui-switch v-model="useOsDefaultEmojis">{{ $t('@.use-os-default-emojis') }}</ui-switch>
 					<!--<ui-switch v-model="iLikeSushi">{{ $t('@.i-like-sushi') }}</ui-switch> -->
 					<ui-switch v-model="disableAnimatedMfm">{{ $t('@.disable-animated-mfm') }}</ui-switch>
+					<ui-switch v-model="disableShowingAnimatedImages">{{ $t('@.disable-showing-animated-images') }}</ui-switch>
+					<ui-switch v-model="suggestRecentHashtags">{{ $t('@.suggest-recent-hashtags') }}</ui-switch>
 					<ui-switch v-model="alwaysShowNsfw">{{ $t('@.always-show-nsfw') }} ({{ $t('@.this-setting-is-this-device-only') }})</ui-switch>
 				</section>
 
 				<section>
 					<ui-switch v-model="games_reversi_showBoardLabels">{{ $t('@.show-reversi-board-labels') }}</ui-switch>
-					<ui-switch v-model="games_reversi_useContrastStones">{{ $t('@.use-contrast-reversi-stones') }}</ui-switch>
+					<ui-switch v-model="games_reversi_useAvatarStones">{{ $t('@.use-avatar-reversi-stones') }}</ui-switch>
 				</section>
 
 				<section>
@@ -63,6 +67,7 @@
 
 				<section>
 					<ui-switch v-model="fetchOnScroll">{{ $t('fetch-on-scroll') }}</ui-switch>
+					<ui-switch v-model="keepCw">{{ $t('keep-cw') }}</ui-switch>
 					<ui-switch v-model="disableViaMobile">{{ $t('disable-via-mobile') }}</ui-switch>
 					<ui-switch v-model="loadRawImages">{{ $t('load-raw-images') }}</ui-switch>
 					<ui-switch v-model="loadRemoteMedia">{{ $t('load-remote-media') }}</ui-switch>
@@ -79,14 +84,20 @@
 							<option value="home">{{ $t('@.note-visibility.home') }}</option>
 							<option value="followers">{{ $t('@.note-visibility.followers') }}</option>
 							<option value="specified">{{ $t('@.note-visibility.specified') }}</option>
-							<option value="private">{{ $t('@.note-visibility.private') }}</option>
 							<option value="local-public">{{ $t('@.note-visibility.local-public') }}</option>
 							<option value="local-home">{{ $t('@.note-visibility.local-home') }}</option>
 							<option value="local-followers">{{ $t('@.note-visibility.local-followers') }}</option>
 						</ui-select>
 					</section>
 				</section>
+
+				<section>
+					<header>{{ $t('web-search-engine') }}</header>
+					<ui-input v-model="webSearchEngine">{{ $t('web-search-engine') }}<span slot="desc">{{ $t('web-search-engine-desc') }}</span></ui-input>
+				</section>
 			</ui-card>
+
+			<x-notification-settings/>
 
 			<x-drive-settings/>
 
@@ -100,61 +111,9 @@
 				</section>
 			</ui-card>
 
-			<ui-card>
-				<div slot="title"><fa icon="language"/> {{ $t('lang') }}</div>
+			<x-language-settings/>
 
-				<section class="fit-top">
-					<ui-select v-model="lang" :placeholder="$t('auto')">
-						<optgroup :label="$t('recommended')">
-							<option value="">{{ $t('auto') }}</option>
-						</optgroup>
-
-						<optgroup :label="$t('specify-language')">
-							<option v-for="x in langs" :value="x[0]" :key="x[0]">{{ x[1] }}</option>
-						</optgroup>
-					</ui-select>
-					<span><fa icon="info-circle"/> {{ $t('lang-tip') }}</span>
-				</section>
-			</ui-card>
-
-			<ui-card>
-				<div slot="title"><fa :icon="['fab', 'twitter']"/> {{ $t('twitter') }}</div>
-
-				<section>
-					<p class="account" v-if="$store.state.i.twitter"><a :href="`https://twitter.com/${$store.state.i.twitter.screenName}`" target="_blank">@{{ $store.state.i.twitter.screenName }}</a></p>
-					<p>
-						<a :href="`${apiUrl}/connect/twitter`" target="_blank">{{ $store.state.i.twitter ? this.$t('twitter-reconnect') : this.$t('twitter-connect') }}</a>
-						<span v-if="$store.state.i.twitter"> or </span>
-						<a :href="`${apiUrl}/disconnect/twitter`" target="_blank" v-if="$store.state.i.twitter">{{ $t('twitter-disconnect') }}</a>
-					</p>
-				</section>
-			</ui-card>
-
-			<ui-card>
-				<div slot="title"><fa :icon="['fab', 'github']"/> {{ $t('github') }}</div>
-
-				<section>
-					<p class="account" v-if="$store.state.i.github"><a :href="`https://github.com/${$store.state.i.github.login}`" target="_blank">@{{ $store.state.i.github.login }}</a></p>
-					<p>
-						<a :href="`${apiUrl}/connect/github`" target="_blank">{{ $store.state.i.github ? this.$t('github-reconnect') : this.$t('github-connect') }}</a>
-						<span v-if="$store.state.i.github"> or </span>
-						<a :href="`${apiUrl}/disconnect/github`" target="_blank" v-if="$store.state.i.github">{{ $t('github-disconnect') }}</a>
-					</p>
-				</section>
-			</ui-card>
-
-			<ui-card>
-				<div slot="title"><fa :icon="['fab', 'discord']"/> {{ $t('discord') }}</div>
-
-				<section>
-					<p class="account" v-if="$store.state.i.discord"><a :href="`https://discordapp.com/users/${$store.state.i.discord.id}`" target="_blank">@{{ $store.state.i.discord.username }}#{{ $store.state.i.discord.discriminator }}</a></p>
-					<p>
-						<a :href="`${apiUrl}/connect/discord`" target="_blank">{{ $store.state.i.discord ? this.$t('discord-reconnect') : this.$t('discord-connect') }}</a>
-						<span v-if="$store.state.i.discord"> or </span>
-						<a :href="`${apiUrl}/disconnect/discord`" target="_blank" v-if="$store.state.i.discord">{{ $t('discord-disconnect') }}</a>
-					</p>
-				</section>
-			</ui-card>
+			<x-integration-settings/>
 
 			<x-api-settings />
 
@@ -193,7 +152,7 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import { apiUrl, clientVersion as version, codename, langs } from '../../../config';
+import { apiUrl, clientVersion as version, codename } from '../../../config';
 import checkForUpdate from '../../../common/scripts/check-for-update';
 import XTheme from '../../../common/views/components/theme.vue';
 import XDriveSettings from '../../../common/views/components/drive-settings.vue';
@@ -201,6 +160,9 @@ import XMuteAndBlock from '../../../common/views/components/mute-and-block.vue';
 import XPasswordSettings from '../../../common/views/components/password-settings.vue';
 import XProfileEditor from '../../../common/views/components/profile-editor.vue';
 import XApiSettings from '../../../common/views/components/api-settings.vue';
+import XLanguageSettings from '../../../common/views/components/language-settings.vue';
+import XIntegrationSettings from '../../../common/views/components/integration-settings.vue';
+import XNotificationSettings from '../../../common/views/components/notification-settings.vue';
 
 export default Vue.extend({
 	i18n: i18n('mobile/views/pages/settings.vue'),
@@ -212,6 +174,9 @@ export default Vue.extend({
 		XPasswordSettings,
 		XProfileEditor,
 		XApiSettings,
+		XLanguageSettings,
+		XIntegrationSettings,
+		XNotificationSettings,
 	},
 
 	data() {
@@ -219,7 +184,6 @@ export default Vue.extend({
 			apiUrl,
 			version,
 			codename,
-			langs,
 			latestVersion: undefined,
 			checkingForUpdate: false
 		};
@@ -243,6 +207,11 @@ export default Vue.extend({
 		reduceMotion: {
 			get() { return this.$store.state.device.reduceMotion; },
 			set(value) { this.$store.commit('device/set', { key: 'reduceMotion', value }); }
+		},
+
+		suggestRecentHashtags: {
+			get() { return this.$store.state.settings.suggestRecentHashtags; },
+			set(value) { this.$store.commit('device/set', { key: 'suggestRecentHashtags', value }); }
 		},
 
 		alwaysShowNsfw: {
@@ -270,11 +239,6 @@ export default Vue.extend({
 			set(value) { this.$store.commit('device/set', { key: 'loadRawImages', value }); }
 		},
 
-		lang: {
-			get() { return this.$store.state.device.lang; },
-			set(value) { this.$store.commit('device/set', { key: 'lang', value }); }
-		},
-
 		enableSounds: {
 			get() { return this.$store.state.device.enableSounds; },
 			set(value) { this.$store.commit('device/set', { key: 'enableSounds', value }); }
@@ -283,6 +247,11 @@ export default Vue.extend({
 		fetchOnScroll: {
 			get() { return this.$store.state.settings.fetchOnScroll; },
 			set(value) { this.$store.dispatch('settings/set', { key: 'fetchOnScroll', value }); }
+		},
+
+		keepCw: {
+			get() { return this.$store.state.settings.keepCw; },
+			set(value) { this.$store.dispatch('settings/set', { key: 'keepCw', value }); }
 		},
 
 		rememberNoteVisibility: {
@@ -305,6 +274,11 @@ export default Vue.extend({
 			set(value) { this.$store.dispatch('settings/set', { key: 'circleIcons', value }); }
 		},
 
+		lineWidth: {
+			get() { return this.$store.state.device.lineWidth; },
+			set(value) { this.$store.commit('device/set', { key: 'lineWidth', value }); }
+		},
+
 		contrastedAcct: {
 			get() { return this.$store.state.settings.contrastedAcct; },
 			set(value) { this.$store.dispatch('settings/set', { key: 'contrastedAcct', value }); }
@@ -320,7 +294,6 @@ export default Vue.extend({
 			set(value) { this.$store.dispatch('settings/set', { key: 'showVia', value }); }
 		},
 
-
 		iLikeSushi: {
 			get() { return this.$store.state.settings.iLikeSushi; },
 			set(value) { this.$store.dispatch('settings/set', { key: 'iLikeSushi', value }); }
@@ -331,14 +304,19 @@ export default Vue.extend({
 			set(value) { this.$store.dispatch('settings/set', { key: 'games.reversi.showBoardLabels', value }); }
 		},
 
-		games_reversi_useContrastStones: {
-			get() { return this.$store.state.settings.games.reversi.useContrastStones; },
-			set(value) { this.$store.dispatch('settings/set', { key: 'games.reversi.useContrastStones', value }); }
+		games_reversi_useAvatarStones: {
+			get() { return this.$store.state.settings.games.reversi.useAvatarStones; },
+			set(value) { this.$store.dispatch('settings/set', { key: 'games.reversi.useAvatarStones', value }); }
 		},
 
 		disableAnimatedMfm: {
 			get() { return this.$store.state.settings.disableAnimatedMfm; },
 			set(value) { this.$store.dispatch('settings/set', { key: 'disableAnimatedMfm', value }); }
+		},
+
+		disableShowingAnimatedImages: {
+			get() { return this.$store.state.device.disableShowingAnimatedImages; },
+			set(value) { this.$store.commit('device/set', { key: 'disableShowingAnimatedImages', value }); }
 		},
 
 		showReplyTarget: {
@@ -365,6 +343,11 @@ export default Vue.extend({
 			get() { return this.$store.state.settings.defaultNoteVisibility; },
 			set(value) { this.$store.dispatch('settings/set', { key: 'defaultNoteVisibility', value }); }
 		},
+
+		webSearchEngine: {
+			get() { return this.$store.state.settings.webSearchEngine; },
+			set(value) { this.$store.dispatch('settings/set', { key: 'webSearchEngine', value }); }
+		},
 	},
 
 	mounted() {
@@ -382,12 +365,12 @@ export default Vue.extend({
 				this.checkingForUpdate = false;
 				this.latestVersion = newer;
 				if (newer == null) {
-					this.$root.alert({
+					this.$root.dialog({
 						title: this.$t('no-updates'),
 						text: this.$t('no-updates-desc')
 					});
 				} else {
-					this.$root.alert({
+					this.$root.dialog({
 						title: this.$t('update-available'),
 						text: this.$t('update-available-desc')
 					});
@@ -404,13 +387,14 @@ main
 	max-width 600px
 	width 100%
 
-	> .signin-as
+	> .signed-in-as
 		margin 16px
 		padding 16px
 		text-align center
 		color var(--mobileSignedInAsFg)
 		background var(--mobileSignedInAsBg)
 		box-shadow 0 3px 1px -2px rgba(#000, 0.2), 0 2px 2px 0 rgba(#000, 0.14), 0 1px 5px 0 rgba(#000, 0.12)
+		font-weight bold
 
 	> .signout
 		margin 16px

@@ -1,8 +1,10 @@
 import $ from 'cafy';
 import define from '../../define';
-import networkChart from '../../../../chart/network';
+import networkChart from '../../../../services/chart/network';
 
 export const meta = {
+	stability: 'stable',
+
 	desc: {
 		'ja-JP': 'ネットワークのチャートを取得します。'
 	},

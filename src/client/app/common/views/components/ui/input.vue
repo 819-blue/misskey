@@ -6,6 +6,7 @@
 			<div class="value" ref="passwordMetar"></div>
 		</div>
 		<span class="label" ref="label"><slot></slot></span>
+		<span class="title" ref="title"><slot name="title"></slot></span>
 		<div class="prefix" ref="prefix"><slot name="prefix"></slot></div>
 		<template v-if="type != 'file'">
 			<input ref="input"
@@ -14,17 +15,19 @@
 				:disabled="disabled"
 				:required="required"
 				:readonly="readonly"
+				:placeholder="placeholder"
 				:pattern="pattern"
 				:autocomplete="autocomplete"
 				:spellcheck="spellcheck"
 				@focus="focused = true"
 				@blur="focused = false"
+				@keydown="$emit('keydown', $event)"
 			>
 		</template>
 		<template v-else>
 			<input ref="input"
 				type="text"
-				:value="placeholder"
+				:value="filePlaceholder"
 				readonly
 				@click="chooseFile"
 			>
@@ -35,6 +38,12 @@
 			>
 		</template>
 		<div class="suffix" ref="suffix"><slot name="suffix"></slot></div>
+	</div>
+	<div class="toggle" v-if="withPasswordToggle">
+		<a @click='togglePassword'>
+			<span v-if="type == 'password'"><fa :icon="['fa', 'eye']"/> {{ $t('@.show-password') }}</span>
+			<span v-if="type != 'password'"><fa :icon="['far', 'eye-slash']"/> {{ $t('@.hide-password') }}</span>
+		</a>
 	</div>
 	<div class="desc"><slot name="desc"></slot></div>
 </div>
@@ -74,6 +83,15 @@ export default Vue.extend({
 			type: String,
 			required: false
 		},
+		placeholder: {
+			type: String,
+			required: false
+		},
+		autofocus: {
+			type: Boolean,
+			required: false,
+			default: false
+		},
 		autocomplete: {
 			required: false
 		},
@@ -81,6 +99,11 @@ export default Vue.extend({
 			required: false
 		},
 		withPasswordMeter: {
+			type: Boolean,
+			required: false,
+			default: false
+		},
+		withPasswordToggle: {
 			type: Boolean,
 			required: false,
 			default: false
@@ -109,7 +132,7 @@ export default Vue.extend({
 		filled(): boolean {
 			return this.v != '' && this.v != null;
 		},
-		placeholder(): string {
+		filePlaceholder(): string {
 			if (this.type != 'file') return null;
 			if (this.v == null) return null;
 
@@ -142,6 +165,12 @@ export default Vue.extend({
 		}
 	},
 	mounted() {
+		if (this.autofocus) {
+			this.$nextTick(() => {
+				this.$refs.input.focus();
+			});
+		}
+
 		this.$nextTick(() => {
 			if (this.$refs.prefix) {
 				this.$refs.label.style.left = (this.$refs.prefix.offsetLeft + this.$refs.prefix.offsetWidth) + 'px';
@@ -155,10 +184,23 @@ export default Vue.extend({
 				}
 			}
 		});
+
+		this.$on('keydown', (e: KeyboardEvent) => {
+			if (e.code == 'Enter') {
+				this.$emit('enter');
+			}
+		});
 	},
 	methods: {
 		focus() {
 			this.$refs.input.focus();
+		},
+		togglePassword() {
+			if (this.type == 'password') {
+				this.type = 'text'
+			} else {
+				this.type = 'password'
+			}
 		},
 		chooseFile() {
 			this.$refs.file.click();
@@ -264,6 +306,20 @@ root(fill)
 			transform-origin top left
 			transform scale(1)
 
+		> .title
+			position absolute
+			z-index 1
+			top fill ? -24px : -17px
+			left 0 !important
+			pointer-events none
+			font-size 16px
+			line-height 32px
+			color var(--inputLabel)
+			pointer-events none
+			//will-change transform
+			transform-origin top left
+			transform scale(.75)
+
 		> input
 			display block
 			width 100%
@@ -323,6 +379,17 @@ root(fill)
 
 			if fill
 				padding-right 12px
+
+	> .toggle
+		cursor pointer
+		padding-left 0.5em
+		font-size 0.7em
+		opacity 0.7
+		text-align left
+
+		> a
+			color var(--inputLabel)
+			text-decoration none
 
 	> .desc
 		margin 6px 0

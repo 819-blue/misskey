@@ -1,5 +1,5 @@
 <template>
-<div class="tumhkfkmgtvzljezfvmgkeurkfncshbe">
+<div>
 	<ui-card>
 		<div slot="title"><fa icon="plus"/> {{ $t('add-emoji.title') }}</div>
 		<section class="fit-top">
@@ -24,24 +24,28 @@
 
 	<ui-card>
 		<div slot="title"><fa :icon="faGrin"/> {{ $t('emojis.title') }}</div>
-		<section v-for="emoji in emojis">
-			<img :src="emoji.url" :alt="emoji.name" style="width: 64px;"/>
-			<ui-horizon-group inputs>
-				<ui-input v-model="emoji.name">
-					<span>{{ $t('add-emoji.name') }}</span>
+		<section v-for="emoji in emojis" class="oryfrbft">
+			<div>
+				<img :src="emoji.url" :alt="emoji.name" style="width: 64px;"/>
+			</div>
+			<div>
+				<ui-horizon-group>
+					<ui-input v-model="emoji.name">
+						<span>{{ $t('add-emoji.name') }}</span>
+					</ui-input>
+					<ui-input v-model="emoji.aliases">
+						<span>{{ $t('add-emoji.aliases') }}</span>
+					</ui-input>
+				</ui-horizon-group>
+				<ui-input v-model="emoji.url">
+					<i slot="icon"><fa icon="link"/></i>
+					<span>{{ $t('add-emoji.url') }}</span>
 				</ui-input>
-				<ui-input v-model="emoji.aliases">
-					<span>{{ $t('add-emoji.aliases') }}</span>
-				</ui-input>
-			</ui-horizon-group>
-			<ui-input v-model="emoji.url">
-				<i slot="icon"><fa icon="link"/></i>
-				<span>{{ $t('add-emoji.url') }}</span>
-			</ui-input>
-			<ui-horizon-group class="fit-bottom">
-				<ui-button @click="updateEmoji(emoji)"><fa :icon="['far', 'save']"/> {{ $t('emojis.update') }}</ui-button>
-				<ui-button @click="removeEmoji(emoji)"><fa :icon="['far', 'trash-alt']"/> {{ $t('emojis.remove') }}</ui-button>
-			</ui-horizon-group>
+				<ui-horizon-group class="fit-bottom">
+					<ui-button @click="updateEmoji(emoji)"><fa :icon="['far', 'save']"/> {{ $t('emojis.update') }}</ui-button>
+					<ui-button @click="removeEmoji(emoji)"><fa :icon="['far', 'trash-alt']"/> {{ $t('emojis.remove') }}</ui-button>
+				</ui-horizon-group>
+			</div>
 		</section>
 	</ui-card>
 </div>
@@ -75,13 +79,13 @@ export default Vue.extend({
 				url: this.url,
 				aliases: this.aliases.split(' ').filter(x => x.length > 0)
 			}).then(() => {
-				this.$root.alert({
+				this.$root.dialog({
 					type: 'success',
 					text: this.$t('add-emoji.added')
 				});
 				this.fetchEmojis();
 			}).catch(e => {
-				this.$root.alert({
+				this.$root.dialog({
 					type: 'error',
 					text: e
 				});
@@ -91,7 +95,9 @@ export default Vue.extend({
 		fetchEmojis() {
 			this.$root.api('admin/emoji/list').then(emojis => {
 				emojis.reverse();
-				emojis.forEach(e => e.aliases = (e.aliases || []).join(' '));
+				for (const e of emojis) {
+					e.aliases = (e.aliases || []).join(' ');
+				}
 				this.emojis = emojis;
 			});
 		},
@@ -103,12 +109,12 @@ export default Vue.extend({
 				url: emoji.url,
 				aliases: emoji.aliases.split(' ').filter(x => x.length > 0)
 			}).then(() => {
-				this.$root.alert({
+				this.$root.dialog({
 					type: 'success',
 					text: this.$t('updated')
 				});
 			}).catch(e => {
-				this.$root.alert({
+				this.$root.dialog({
 					type: 'error',
 					text: e
 				});
@@ -116,23 +122,23 @@ export default Vue.extend({
 		},
 
 		removeEmoji(emoji) {
-			this.$root.alert({
+			this.$root.dialog({
 				type: 'warning',
 				text: this.$t('remove-emoji.are-you-sure').replace('$1', emoji.name),
 				showCancelButton: true
-			}).then(res => {
-				if (!res) return;
+			}).then(({ canceled }) => {
+				if (canceled) return;
 
 				this.$root.api('admin/emoji/remove', {
 					id: emoji.id
 				}).then(() => {
-					this.$root.alert({
+					this.$root.dialog({
 						type: 'success',
 						text: this.$t('remove-emoji.removed')
 					});
 					this.fetchEmojis();
 				}).catch(e => {
-					this.$root.alert({
+					this.$root.dialog({
 						type: 'error',
 						text: e
 					});
@@ -144,8 +150,21 @@ export default Vue.extend({
 </script>
 
 <style lang="stylus" scoped>
-.tumhkfkmgtvzljezfvmgkeurkfncshbe
+.oryfrbft
 	@media (min-width 500px)
-		padding 16px
+		display flex
+
+	> div:first-child
+		@media (max-width 500px)
+			padding-bottom 16px
+
+		> img
+			vertical-align bottom
+
+	> div:last-child
+		flex 1
+
+		@media (min-width 500px)
+			padding-left 16px
 
 </style>

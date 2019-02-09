@@ -35,7 +35,7 @@
 						<span class="signin" @click="signin">{{ $t('signin') }}</span>
 					</p>
 
-					<img src="/assets/ai.png" alt="" title="藍" class="char">
+					<img :src="meta.mascotImageUrl" alt="" title="藍" class="char">
 				</div>
 			</div>
 
@@ -371,7 +371,6 @@ export default Vue.extend({
 			> .main
 				grid-row 1
 				grid-column 1 / 3
-				border-top solid 5px var(--primary)
 
 				> div
 					padding 32px

@@ -1,6 +1,5 @@
 import * as mongo from 'mongodb';
 import { toUnicode } from 'punycode';
-import * as debug from 'debug';
 
 import config from '../../../config';
 import User, { validateUsername, isValidName, IUser, IRemoteUser, isRemoteUser } from '../../../models/user';
@@ -9,15 +8,21 @@ import { resolveImage } from './image';
 import { isCollectionOrOrderedCollection, isCollection, IPerson } from '../type';
 import { IDriveFile } from '../../../models/drive-file';
 import Meta from '../../../models/meta';
-import htmlToMFM from '../../../mfm/html-to-mfm';
-import usersChart from '../../../chart/users';
+import { fromHtml } from '../../../mfm/fromHtml';
+import usersChart from '../../../services/chart/users';
+import instanceChart from '../../../services/chart/instance';
 import { URL } from 'url';
-import { resolveNote } from './note';
-import registerInstance from '../../../services/register-instance';
+import { resolveNote, extractEmojis } from './note';
+import { registerOrFetchInstanceDoc } from '../../../services/register-or-fetch-instance-doc';
 import Instance from '../../../models/instance';
 import getDriveFileUrl from '../../../misc/get-drive-file-url';
+import { IEmoji } from '../../../models/emoji';
+import { ITag, extractHashtags } from './tag';
+import Following from '../../../models/following';
+import { IIdentifier } from './identifier';
+import { apLogger } from '../logger';
 
-const log = debug('misskey:activitypub');
+const logger = apLogger;
 
 /**
  * Validate Person object
@@ -43,7 +48,7 @@ function validatePerson(x: any, uri: string) {
 		return new Error('invalid person: inbox is not a string');
 	}
 
-	if (!validateUsername(x.preferredUsername)) {
+	if (!validateUsername(x.preferredUsername, true)) {
 		return new Error('invalid person: invalid username');
 	}
 
@@ -115,7 +120,7 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 
 	const person: IPerson = object;
 
-	log(`Creating the Person: ${person.id}`);
+	logger.info(`Creating the Person: ${person.id}`);
 
 	const [followersCount = 0, followingCount = 0, notesCount = 0] = await Promise.all([
 		resolver.resolve(person.followers).then(
@@ -134,6 +139,10 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 
 	const host = toUnicode(new URL(object.id).hostname.toLowerCase());
 
+	const { fields, services } = analyzeAttachments(person.attachment);
+
+	const tags = extractHashtags(person.tag);
+
 	const isBot = object.type == 'Service';
 
 	// Create user
@@ -144,7 +153,7 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 			bannerId: null,
 			createdAt: Date.parse(person.published) || null,
 			lastFetchedAt: new Date(),
-			description: htmlToMFM(person.summary),
+			description: fromHtml(person.summary),
 			followersCount,
 			followingCount,
 			notesCount,
@@ -158,13 +167,16 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 				publicKeyPem: person.publicKey.publicKeyPem
 			},
 			inbox: person.inbox,
-			sharedInbox: person.sharedInbox,
+			sharedInbox: person.sharedInbox || (person.endpoints ? person.endpoints.sharedInbox : undefined),
 			featured: person.featured,
 			endpoints: person.endpoints,
 			uri: person.id,
 			url: person.url,
-			isBot: isBot,
-			isCat: (person as any).isCat === true ? true : false
+			fields,
+			...services,
+			tags,
+			isBot,
+			isCat: (person as any).isCat === true
 		}) as IRemoteUser;
 	} catch (e) {
 		// duplicate key error
@@ -172,20 +184,19 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 			throw new Error('already registered');
 		}
 
-		console.error(e);
+		logger.error(e);
 		throw e;
 	}
 
 	// Register host
-	registerInstance(host).then(i => {
+	registerOrFetchInstanceDoc(host).then(i => {
 		Instance.update({ _id: i._id }, {
 			$inc: {
 				usersCount: 1
 			}
 		});
 
-		// TODO
-		//perInstanceChart.newUser();
+		instanceChart.newUser(i.host);
 	});
 
 	//#region Increment users count
@@ -234,7 +245,22 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 	user.bannerColor = bannerColor;
 	//#endregion
 
-	await updateFeatured(user._id).catch(err => console.log(err));
+	//#region カスタム絵文字取得
+	const emojis = await extractEmojis(person.tag, host).catch(e => {
+		logger.info(`extractEmojis: ${e}`);
+		return [] as IEmoji[];
+	});
+
+	const emojiNames = emojis.map(emoji => emoji.name);
+
+	await User.update({ _id: user._id }, {
+		$set: {
+			emojis: emojiNames
+		}
+	});
+	//#endregion
+
+	await updateFeatured(user._id).catch(err => logger.error(err));
 
 	return user;
 }
@@ -274,7 +300,7 @@ export async function updatePerson(uri: string, resolver?: Resolver, hint?: obje
 
 	const person: IPerson = object;
 
-	log(`Updating the Person: ${person.id}`);
+	logger.info(`Updating the Person: ${person.id}`);
 
 	const [followersCount = 0, followingCount = 0, notesCount = 0] = await Promise.all([
 		resolver.resolve(person.followers).then(
@@ -301,38 +327,73 @@ export async function updatePerson(uri: string, resolver?: Resolver, hint?: obje
 			: resolveImage(exist, img).catch(() => null)
 	)));
 
-	// Update user
-	await User.update({ _id: exist._id }, {
-		$set: {
-			lastFetchedAt: new Date(),
-			inbox: person.inbox,
-			sharedInbox: person.sharedInbox,
-			featured: person.featured,
-			avatarId: avatar ? avatar._id : null,
-			bannerId: banner ? banner._id : null,
-			avatarUrl: getDriveFileUrl(avatar, true),
-			bannerUrl: getDriveFileUrl(banner, false),
-			avatarColor: avatar && avatar.metadata.properties.avgColor ? avatar.metadata.properties.avgColor : null,
-			bannerColor: banner && banner.metadata.properties.avgColor ? banner.metadata.properties.avgColor : null,
-			description: htmlToMFM(person.summary),
-			followersCount,
-			followingCount,
-			notesCount,
-			name: person.name,
-			url: person.url,
-			endpoints: person.endpoints,
-			isBot: object.type == 'Service',
-			isCat: (person as any).isCat === true ? true : false,
-			isLocked: person.manuallyApprovesFollowers,
-			createdAt: Date.parse(person.published) || null,
-			publicKey: {
-				id: person.publicKey.id,
-				publicKeyPem: person.publicKey.publicKeyPem
-			},
-		}
+	// カスタム絵文字取得
+	const emojis = await extractEmojis(person.tag, exist.host).catch(e => {
+		logger.info(`extractEmojis: ${e}`);
+		return [] as IEmoji[];
 	});
 
-	await updateFeatured(exist._id).catch(err => console.log(err));
+	const emojiNames = emojis.map(emoji => emoji.name);
+
+	const { fields, services } = analyzeAttachments(person.attachment);
+
+	const tags = extractHashtags(person.tag);
+
+	const updates = {
+		lastFetchedAt: new Date(),
+		inbox: person.inbox,
+		sharedInbox: person.sharedInbox || (person.endpoints ? person.endpoints.sharedInbox : undefined),
+		featured: person.featured,
+		emojis: emojiNames,
+		description: fromHtml(person.summary),
+		followersCount,
+		followingCount,
+		notesCount,
+		name: person.name,
+		url: person.url,
+		endpoints: person.endpoints,
+		fields,
+		...services,
+		tags,
+		isBot: object.type == 'Service',
+		isCat: (person as any).isCat === true,
+		isLocked: person.manuallyApprovesFollowers,
+		createdAt: Date.parse(person.published) || null,
+		publicKey: {
+			id: person.publicKey.id,
+			publicKeyPem: person.publicKey.publicKeyPem
+		},
+	} as any;
+
+	if (avatar) {
+		updates.avatarId = avatar._id;
+		updates.avatarUrl = getDriveFileUrl(avatar, true);
+		updates.avatarColor = avatar.metadata.properties.avgColor ? avatar.metadata.properties.avgColor : null;
+	}
+
+	if (banner) {
+		updates.bannerId = banner._id;
+		updates.bannerUrl = getDriveFileUrl(banner, true);
+		updates.bannerColor = banner.metadata.properties.avgColor ? banner.metadata.properties.avgColor : null;
+	}
+
+	// Update user
+	await User.update({ _id: exist._id }, {
+		$set: updates
+	});
+
+	// 該当ユーザーが既にフォロワーになっていた場合はFollowingもアップデートする
+	await Following.update({
+		followerId: exist._id
+	}, {
+		$set: {
+			'_follower.sharedInbox': person.sharedInbox || (person.endpoints ? person.endpoints.sharedInbox : undefined)
+		}
+	}, {
+		multi: true
+	});
+
+	await updateFeatured(exist._id).catch(err => logger.error(err));
 }
 
 /**
@@ -357,12 +418,69 @@ export async function resolvePerson(uri: string, verifier?: string, resolver?: R
 	return await createPerson(uri, resolver);
 }
 
+const isPropertyValue = (x: {
+		type: string,
+		name?: string,
+		value?: string
+	}) =>
+		x &&
+		x.type === 'PropertyValue' &&
+		typeof x.name === 'string' &&
+		typeof x.value === 'string';
+
+const services: {
+		[x: string]: (id: string, username: string) => any
+	} = {
+	'misskey:authentication:twitter': (userId, screenName) => ({ userId, screenName }),
+	'misskey:authentication:github': (id, login) => ({ id, login }),
+	'misskey:authentication:discord': (id, name) => $discord(id, name)
+};
+
+const $discord = (id: string, name: string) => {
+	if (typeof name !== 'string')
+		name = 'unknown#0000';
+	const [username, discriminator] = name.split('#');
+	return { id, username, discriminator };
+};
+
+function addService(target: { [x: string]: any }, source: IIdentifier) {
+	const service = services[source.name];
+
+	if (typeof source.value !== 'string')
+		source.value = 'unknown';
+
+	const [id, username] = source.value.split('@');
+
+	if (service)
+		target[source.name.split(':')[2]] = service(id, username);
+}
+
+export function analyzeAttachments(attachments: ITag[]) {
+	const fields: {
+		name: string,
+		value: string
+	}[] = [];
+	const services: { [x: string]: any } = {};
+
+	if (Array.isArray(attachments))
+		for (const attachment of attachments.filter(isPropertyValue))
+			if (isPropertyValue(attachment.identifier))
+				addService(services, attachment.identifier);
+			else
+				fields.push({
+					name: attachment.name,
+					value: fromHtml(attachment.value)
+				});
+
+	return { fields, services };
+}
+
 export async function updateFeatured(userId: mongo.ObjectID) {
 	const user = await User.findOne({ _id: userId });
 	if (!isRemoteUser(user)) return;
 	if (!user.featured) return;
 
-	log(`Updating the featured: ${user.uri}`);
+	logger.info(`Updating the featured: ${user.uri}`);
 
 	const resolver = new Resolver();
 
@@ -383,7 +501,7 @@ export async function updateFeatured(userId: mongo.ObjectID) {
 
 	await User.update({ _id: user._id }, {
 		$set: {
-			pinnedNoteIds: featuredNotes.map(note => note._id)
+			pinnedNoteIds: featuredNotes.filter(note => note != null).map(note => note._id)
 		}
 	});
 }

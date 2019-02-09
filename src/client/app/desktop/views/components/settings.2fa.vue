@@ -1,22 +1,22 @@
 <template>
 <div class="2fa">
-	<p style="margin-top:0;">{{ $t('intro') }}<a :href="$t('href')" target="_blank">{{ $t('detail') }}</a></p>
+	<p style="margin-top:0;">{{ $t('intro') }}<a :href="$t('url')" target="_blank">{{ $t('detail') }}</a></p>
 	<ui-info warn>{{ $t('caution') }}</ui-info>
 	<p v-if="!data && !$store.state.i.twoFactorEnabled"><ui-button @click="register">{{ $t('register') }}</ui-button></p>
 	<template v-if="$store.state.i.twoFactorEnabled">
 		<p>{{ $t('already-registered') }}</p>
 		<ui-button @click="unregister">{{ $t('unregister') }}</ui-button>
 	</template>
-	<div v-if="data">
+	<div v-if="data && !$store.state.i.twoFactorEnabled">
 		<ol>
-			<li>{{ $t('authenticator% <a href="https://support.google.com/accounts/answer/1066447" target="_blank">%i18n:@howtoinstall') }}</a></li>
+			<li>{{ $t('authenticator') }}<a href="https://support.google.com/accounts/answer/1066447" target="_blank">{{ $t('howtoinstall') }}</a></li>
 			<li>{{ $t('scan') }}<br><img :src="data.qr"></li>
 			<li>{{ $t('done') }}<br>
-				<input type="number" v-model="token" class="ui">
+				<ui-input v-model="token">{{ $t('token') }}</ui-input>
 				<ui-button primary @click="submit">{{ $t('submit') }}</ui-button>
 			</li>
 		</ol>
-		<div class="ui info"><p><fa icon="info-circle"/>{{ $t('info') }}</p></div>
+		<ui-info>{{ $t('info') }}</ui-info>
 	</div>
 </div>
 </template>
@@ -35,10 +35,13 @@ export default Vue.extend({
 	},
 	methods: {
 		register() {
-			this.$input({
+			this.$root.dialog({
 				title: this.$t('enter-password'),
-				type: 'password'
-			}).then(password => {
+				input: {
+					type: 'password'
+				}
+			}).then(({ canceled, result: password }) => {
+				if (canceled) return;
 				this.$root.api('i/2fa/register', {
 					password: password
 				}).then(data => {
@@ -48,10 +51,13 @@ export default Vue.extend({
 		},
 
 		unregister() {
-			this.$input({
+			this.$root.dialog({
 				title: this.$t('enter-password'),
-				type: 'password'
-			}).then(password => {
+				input: {
+					type: 'password'
+				}
+			}).then(({ canceled, result: password }) => {
+				if (canceled) return;
 				this.$root.api('i/2fa/unregister', {
 					password: password
 				}).then(() => {

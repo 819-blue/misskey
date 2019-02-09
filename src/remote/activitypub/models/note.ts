@@ -1,5 +1,4 @@
 import * as mongo from 'mongodb';
-import * as debug from 'debug';
 
 import config from '../../../config';
 import Resolver from '../resolver';
@@ -9,13 +8,16 @@ import { INote as INoteActivityStreamsObject, IObject } from '../type';
 import { resolvePerson, updatePerson } from './person';
 import { resolveImage } from './image';
 import { IRemoteUser, IUser } from '../../../models/user';
-import htmlToMFM from '../../../mfm/html-to-mfm';
-import Emoji from '../../../models/emoji';
-import { ITag } from './tag';
+import { fromHtml } from '../../../mfm/fromHtml';
+import Emoji, { IEmoji } from '../../../models/emoji';
+import { ITag, extractHashtags } from './tag';
 import { toUnicode } from 'punycode';
 import { unique, concat, difference } from '../../../prelude/array';
+import { extractPollFromQuestion } from './question';
+import vote from '../../../services/note/polls/vote';
+import { apLogger } from '../logger';
 
-const log = debug('misskey:activitypub');
+const logger = apLogger;
 
 /**
  * Noteをフェッチします。
@@ -51,13 +53,13 @@ export async function createNote(value: any, resolver?: Resolver, silent = false
 	const object = await resolver.resolve(value) as any;
 
 	if (object == null || object.type !== 'Note') {
-		log(`invalid note: ${object}`);
+		logger.error(`invalid note: ${object}`);
 		return null;
 	}
 
 	const note: INoteActivityStreamsObject = object;
 
-	log(`Creating the Note: ${note.id}`);
+	logger.info(`Creating the Note: ${note.id}`);
 
 	// 投稿者をフェッチ
 	const actor = await resolvePerson(note.attributedTo, null, resolver) as IRemoteUser;
@@ -84,6 +86,8 @@ export async function createNote(value: any, resolver?: Resolver, silent = false
 
 	const apMentions = await extractMentionedUsers(actor, note.to, note.cc, resolver);
 
+	const apHashtags = await extractHashtags(note.tag);
+
 	// 添付ファイル
 	// TODO: attachmentは必ずしもImageではない
 	// TODO: attachmentは必ずしも配列ではない
@@ -103,12 +107,30 @@ export async function createNote(value: any, resolver?: Resolver, silent = false
 		quote = await resolveNote(note._misskey_quote).catch(() => null);
 	}
 
-	// テキストのパース
-	const text = note._misskey_content ? note._misskey_content : htmlToMFM(note.content);
+	const cw = note.summary === '' ? null : note.summary;
 
-	await extractEmojis(note.tag, actor.host).catch(e => {
-		console.log(`extractEmojis: ${e}`);
+	// テキストのパース
+	const text = note._misskey_content ? note._misskey_content : fromHtml(note.content);
+
+	// vote
+	if (reply && reply.poll && text != null) {
+		const m = text.match(/([0-9])$/);
+		if (m) {
+			logger.info(`vote from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${m[0]}`);
+			await vote(actor, reply, Number(m[1]));
+			return null;
+		}
+	}
+
+	const emojis = await extractEmojis(note.tag, actor.host).catch(e => {
+		logger.info(`extractEmojis: ${e}`);
+		return [] as IEmoji[];
 	});
+
+	const apEmojis = emojis.map(emoji => emoji.name);
+
+	const questionUri = note._misskey_question;
+	const poll = questionUri ? await extractPollFromQuestion(questionUri).catch(() => undefined) : undefined;
 
 	// ユーザーの情報が古かったらついでに更新しておく
 	if (actor.lastFetchedAt == null || Date.now() - actor.lastFetchedAt.getTime() > 1000 * 60 * 60 * 24) {
@@ -120,7 +142,7 @@ export async function createNote(value: any, resolver?: Resolver, silent = false
 		files: files,
 		reply,
 		renote: quote,
-		cw: note.summary,
+		cw: cw,
 		text: text,
 		viaMobile: false,
 		localOnly: false,
@@ -128,6 +150,10 @@ export async function createNote(value: any, resolver?: Resolver, silent = false
 		visibility,
 		visibleUsers,
 		apMentions,
+		apHashtags,
+		apEmojis,
+		questionUri,
+		poll,
 		uri: note.id
 	}, silent);
 }
@@ -155,7 +181,7 @@ export async function resolveNote(value: string | IObject, resolver?: Resolver):
 	return await createNote(uri, resolver);
 }
 
-async function extractEmojis(tags: ITag[], host_: string) {
+export async function extractEmojis(tags: ITag[], host_: string) {
 	const host = toUnicode(host_.toLowerCase());
 
 	if (!tags) return [];
@@ -172,16 +198,32 @@ async function extractEmojis(tags: ITag[], host_: string) {
 			});
 
 			if (exists) {
+				if ((tag.updated != null && exists.updatedAt == null)
+					|| (tag.id != null && exists.uri == null)
+					|| (tag.updated != null && exists.updatedAt != null && new Date(tag.updated) > exists.updatedAt)) {
+						return await Emoji.findOneAndUpdate({
+							host,
+							name,
+						}, {
+							$set: {
+								uri: tag.id,
+								url: tag.icon.url,
+								updatedAt: new Date(tag.updated),
+							}
+						});
+				}
 				return exists;
 			}
 
-			log(`register emoji host=${host}, name=${name}`);
+			logger.info(`register emoji host=${host}, name=${name}`);
 
 			return await Emoji.insert({
 				host,
 				name,
+				uri: tag.id,
 				url: tag.icon.url,
-				aliases: [],
+				updatedAt: tag.updated ? new Date(tag.updated) : undefined,
+				aliases: []
 			});
 		})
 	);

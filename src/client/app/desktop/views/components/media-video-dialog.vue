@@ -1,13 +1,13 @@
 <template>
 <div class="mk-media-video-dialog">
 	<div class="bg" @click="close"></div>
-	<video :src="video.url" :title="video.name" controls autoplay ref="video"/>
+	<video :src="video.url" :title="video.name" controls autoplay ref="video" @volumechange="volumechange"/>
 </div>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
-import * as anime from 'animejs';
+import anime from 'animejs';
 
 export default Vue.extend({
 	props: ['video', 'start'],
@@ -18,8 +18,9 @@ export default Vue.extend({
 			duration: 100,
 			easing: 'linear'
 		});
-		const videoTag = this.$refs.video as HTMLVideoElement
+		const videoTag = this.$refs.video as HTMLVideoElement;
 		if (this.start) videoTag.currentTime = this.start
+		videoTag.volume = this.$store.state.device.mediaVolume;
 	},
 	methods: {
 		close() {
@@ -30,7 +31,11 @@ export default Vue.extend({
 				easing: 'linear',
 				complete: () => this.destroyDom()
 			});
-		}
+		},
+		volumechange() {
+			const videoTag = this.$refs.video as HTMLVideoElement;
+			this.$store.commit('device/set', { key: 'mediaVolume', value: videoTag.volume });
+		},
 	}
 });
 </script>

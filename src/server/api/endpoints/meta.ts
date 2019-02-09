@@ -4,9 +4,9 @@ import config from '../../../config';
 import Emoji from '../../../models/emoji';
 import define from '../define';
 import fetchMeta from '../../../misc/fetch-meta';
+import * as pkg from '../../../../package.json';
 
-const pkg = require('../../../../package.json');
-const client = require('../../../../built/client/meta.json');
+import * as client from '../../../../built/client/meta.json';
 
 export const meta = {
 	stability: 'stable',
@@ -42,6 +42,7 @@ export default define(meta, (ps, me) => new Promise(async (res, rej) => {
 		clientVersion: client.version,
 
 		name: instance.name,
+		uri: config.url,
 		description: instance.description,
 		langs: instance.langs,
 
@@ -58,37 +59,37 @@ export default define(meta, (ps, me) => new Promise(async (res, rej) => {
 		broadcasts: instance.broadcasts || [],
 		disableRegistration: instance.disableRegistration,
 		disableLocalTimeline: instance.disableLocalTimeline,
+		disableGlobalTimeline: instance.disableGlobalTimeline,
 		driveCapacityPerLocalUserMb: instance.localDriveCapacityMb,
 		driveCapacityPerRemoteUserMb: instance.remoteDriveCapacityMb,
 		cacheRemoteFiles: instance.cacheRemoteFiles,
 		enableRecaptcha: instance.enableRecaptcha,
 		recaptchaSiteKey: instance.recaptchaSiteKey,
-		swPublickey: config.sw ? config.sw.public_key : null,
+		swPublickey: instance.swPublicKey,
+		mascotImageUrl: instance.mascotImageUrl,
 		bannerUrl: instance.bannerUrl,
+		errorImageUrl: instance.errorImageUrl,
 		maxNoteTextLength: instance.maxNoteTextLength,
-
 		emojis: emojis,
+		enableEmail: instance.enableEmail,
 
 		enableTwitterIntegration: instance.enableTwitterIntegration,
 		enableGithubIntegration: instance.enableGithubIntegration,
 		enableDiscordIntegration: instance.enableDiscordIntegration,
-
-		enableExternalUserRecommendation: instance.enableExternalUserRecommendation,
-		externalUserRecommendationEngine: instance.externalUserRecommendationEngine,
-		externalUserRecommendationTimeout: instance.externalUserRecommendationTimeout
 	};
 
 	if (ps.detail) {
 		response.features = {
 			registration: !instance.disableRegistration,
 			localTimeLine: !instance.disableLocalTimeline,
+			globalTimeLine: !instance.disableGlobalTimeline,
 			elasticsearch: config.elasticsearch ? true : false,
 			recaptcha: instance.enableRecaptcha,
 			objectStorage: config.drive && config.drive.storage === 'minio',
 			twitter: instance.enableTwitterIntegration,
 			github: instance.enableGithubIntegration,
 			discord: instance.enableDiscordIntegration,
-			serviceWorker: config.sw ? true : false,
+			serviceWorker: instance.enableServiceWorker,
 			userRecommendation: {
 				external: instance.enableExternalUserRecommendation,
 				engine: instance.externalUserRecommendationEngine,
@@ -107,7 +108,17 @@ export default define(meta, (ps, me) => new Promise(async (res, rej) => {
 		response.githubClientSecret = instance.githubClientSecret;
 		response.discordClientId = instance.discordClientId;
 		response.discordClientSecret = instance.discordClientSecret;
+		response.enableExternalUserRecommendation = instance.enableExternalUserRecommendation;
+		response.externalUserRecommendationEngine = instance.externalUserRecommendationEngine;
+		response.externalUserRecommendationTimeout = instance.externalUserRecommendationTimeout;
 		response.summalyProxy = instance.summalyProxy;
+		response.email = instance.email;
+		response.smtpSecure = instance.smtpSecure;
+		response.smtpHost = instance.smtpHost;
+		response.smtpPort = instance.smtpPort;
+		response.smtpUser = instance.smtpUser;
+		response.smtpPass = instance.smtpPass;
+		response.swPrivateKey = instance.swPrivateKey;
 	}
 
 	res(response);

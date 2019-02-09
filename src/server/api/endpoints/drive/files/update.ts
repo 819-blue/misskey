@@ -1,7 +1,8 @@
-import $ from 'cafy'; import ID, { transform } from '../../../../../misc/cafy-id';
+import $ from 'cafy';
+import ID, { transform } from '../../../../../misc/cafy-id';
 import DriveFolder from '../../../../../models/drive-folder';
 import DriveFile, { validateFileName, pack } from '../../../../../models/drive-file';
-import { publishDriveStream } from '../../../../../stream';
+import { publishDriveStream } from '../../../../../services/stream';
 import define from '../../../define';
 import Note from '../../../../../models/note';
 
@@ -57,12 +58,15 @@ export default define(meta, (ps, user) => new Promise(async (res, rej) => {
 	// Fetch file
 	const file = await DriveFile
 		.findOne({
-			_id: ps.fileId,
-			'metadata.userId': user._id
+			_id: ps.fileId
 		});
 
 	if (file === null) {
 		return rej('file-not-found');
+	}
+
+	if (!user.isAdmin && !user.isModerator && !file.metadata.userId.equals(user._id)) {
+		return rej('access denied');
 	}
 
 	if (ps.name) file.filename = ps.name;
@@ -100,14 +104,14 @@ export default define(meta, (ps, user) => new Promise(async (res, rej) => {
 	Note.find({
 		'_files._id': file._id
 	}).then(notes => {
-		notes.forEach(note => {
+		for (const note of notes) {
 			note._files[note._files.findIndex(f => f._id.equals(file._id))] = file;
 			Note.update({ _id: note._id }, {
 				$set: {
 					_files: note._files
 				}
 			});
-		});
+		}
 	});
 
 	// Serialize

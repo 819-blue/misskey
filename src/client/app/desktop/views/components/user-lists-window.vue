@@ -1,5 +1,5 @@
 <template>
-<mk-window ref="window" is-modal width="450px" height="500px" @closed="destroyDom">
+<mk-window ref="window" width="450px" height="500px" @closed="destroyDom">
 	<span slot="header"><fa icon="list"/> {{ $t('title') }}</span>
 
 	<div class="xkxvokkjlptzyewouewmceqcxhpgzprp">
@@ -29,9 +29,11 @@ export default Vue.extend({
 	},
 	methods: {
 		add() {
-			this.$input({
+			this.$root.dialog({
 				title: this.$t('list-name'),
-			}).then(async title => {
+				input: true
+			}).then(async ({ canceled, result: title }) => {
+				if (canceled) return;
 				const list = await this.$root.api('users/lists/create', {
 					title
 				});
@@ -54,7 +56,25 @@ export default Vue.extend({
 	padding 16px
 
 	> button
+		display block
 		margin-bottom 16px
+		color var(--primaryForeground)
+		background var(--primary)
+		width 100%
+		border-radius 38px
+		user-select none
+		cursor pointer
+		padding 0 16px
+		min-width 100px
+		line-height 38px
+		font-size 14px
+		font-weight 700
+
+		&:hover
+			background var(--primaryLighten10)
+
+		&:active
+			background var(--primaryDarken10)
 
 	> a
 		display block

@@ -14,13 +14,14 @@ export default class extends Channel {
 		const mute = this.user ? await Mute.find({ muterId: this.user._id }) : null;
 		const mutedUserIds = mute ? mute.map(m => m.muteeId.toString()) : [];
 
-		const q: Array<string[]> = params.q;
+		const q: string[][] = params.q;
 
 		if (q == null) return;
 
 		// Subscribe stream
 		this.subscriber.on('hashtag', async note => {
-			const matched = q.some(tags => tags.every(tag => note.tags.map((t: string) => t.toLowerCase()).includes(tag.toLowerCase())));
+			const noteTags = note.tags.map((t: string) => t.toLowerCase());
+			const matched = q.some(tags => tags.every(tag => noteTags.includes(tag.toLowerCase())));
 			if (!matched) return;
 
 			// Renoteなら再pack

@@ -120,9 +120,9 @@ export default Vue.extend({
 
 			// ファイルだったら
 			if (e.dataTransfer.files.length > 0) {
-				Array.from(e.dataTransfer.files).forEach(file => {
+				for (const file of Array.from(e.dataTransfer.files)) {
 					this.browser.upload(file, this.folder);
-				});
+				}
 				return;
 			}
 
@@ -155,7 +155,7 @@ export default Vue.extend({
 				}).catch(err => {
 					switch (err) {
 						case 'detected-circular-definition':
-							this.$root.alert({
+							this.$root.dialog({
 								title: this.$t('unable-to-process'),
 								text: this.$t('circular-reference-detected')
 							});
@@ -192,11 +192,14 @@ export default Vue.extend({
 		},
 
 		rename() {
-			this.$input({
+			this.$root.dialog({
 				title: this.$t('contextmenu.rename-folder'),
-				placeholder: this.$t('contextmenu.input-new-folder-name'),
-				default: this.folder.name
-			}).then(name => {
+				input: {
+					placeholder: this.$t('contextmenu.input-new-folder-name'),
+					default: this.folder.name
+				}
+			}).then(({ canceled, result: name }) => {
+				if (canceled) return;
 				this.$root.api('drive/folders/update', {
 					folderId: this.folder.id,
 					name: name

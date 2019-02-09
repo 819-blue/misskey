@@ -1,9 +1,11 @@
 import $ from 'cafy';
 import define from '../../../define';
-import perUserDriveChart from '../../../../../chart/per-user-drive';
+import perUserDriveChart from '../../../../../services/chart/per-user-drive';
 import ID, { transform } from '../../../../../misc/cafy-id';
 
 export const meta = {
+	stability: 'stable',
+
 	desc: {
 		'ja-JP': 'ユーザーごとのドライブのチャートを取得します。'
 	},

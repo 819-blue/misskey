@@ -1,21 +1,29 @@
 <template>
-<div class="axbwjelsbymowqjyywpirzhdlszoncqs">
+<div>
 	<ui-card>
 		<div slot="title"><fa icon="cog"/> {{ $t('instance') }}</div>
 		<section class="fit-top fit-bottom">
 			<ui-input :value="host" readonly>{{ $t('host') }}</ui-input>
 			<ui-input v-model="name">{{ $t('instance-name') }}</ui-input>
 			<ui-textarea v-model="description">{{ $t('instance-description') }}</ui-textarea>
+			<ui-input v-model="mascotImageUrl"><i slot="icon"><fa icon="link"/></i>{{ $t('logo-url') }}</ui-input>
 			<ui-input v-model="bannerUrl"><i slot="icon"><fa icon="link"/></i>{{ $t('banner-url') }}</ui-input>
+			<ui-input v-model="errorImageUrl"><i slot="icon"><fa icon="link"/></i>{{ $t('error-image-url') }}</ui-input>
 			<ui-input v-model="languages"><i slot="icon"><fa icon="language"/></i>{{ $t('languages') }}<span slot="desc">{{ $t('languages-desc') }}</span></ui-input>
 		</section>
 		<section class="fit-bottom">
 			<header><fa :icon="faHeadset"/> {{ $t('maintainer-config') }}</header>
 			<ui-input v-model="maintainerName">{{ $t('maintainer-name') }}</ui-input>
-			<ui-input v-model="maintainerEmail" type="email"><i slot="icon"><fa :icon="['far', 'envelope']"/></i>{{ $t('maintainer-email') }}</ui-input>
+			<ui-input v-model="maintainerEmail" type="email"><i slot="icon"><fa :icon="farEnvelope"/></i>{{ $t('maintainer-email') }}</ui-input>
 		</section>
 		<section class="fit-top fit-bottom">
 			<ui-input v-model="maxNoteTextLength">{{ $t('max-note-text-length') }}</ui-input>
+		</section>
+		<section>
+			<ui-switch v-model="disableRegistration">{{ $t('disable-registration') }}</ui-switch>
+			<ui-switch v-model="disableLocalTimeline">{{ $t('disable-local-timeline') }}</ui-switch>
+			<ui-switch v-model="disableGlobalTimeline">{{ $t('disable-global-timeline') }}</ui-switch>
+			<ui-info>{{ $t('disabling-timelines-info') }}</ui-info>
 		</section>
 		<section class="fit-bottom">
 			<header><fa icon="cloud"/> {{ $t('drive-config') }}</header>
@@ -27,8 +35,10 @@
 			<header><fa :icon="faShieldAlt"/> {{ $t('recaptcha-config') }}</header>
 			<ui-switch v-model="enableRecaptcha">{{ $t('enable-recaptcha') }}</ui-switch>
 			<ui-info>{{ $t('recaptcha-info') }}</ui-info>
-			<ui-input v-model="recaptchaSiteKey" :disabled="!enableRecaptcha"><i slot="icon"><fa icon="key"/></i>{{ $t('recaptcha-site-key') }}</ui-input>
-			<ui-input v-model="recaptchaSecretKey" :disabled="!enableRecaptcha"><i slot="icon"><fa icon="key"/></i>{{ $t('recaptcha-secret-key') }}</ui-input>
+			<ui-horizon-group inputs>
+				<ui-input v-model="recaptchaSiteKey" :disabled="!enableRecaptcha"><i slot="icon"><fa icon="key"/></i>{{ $t('recaptcha-site-key') }}</ui-input>
+				<ui-input v-model="recaptchaSecretKey" :disabled="!enableRecaptcha"><i slot="icon"><fa icon="key"/></i>{{ $t('recaptcha-secret-key') }}</ui-input>
+			</ui-horizon-group>
 		</section>
 		<section>
 			<header><fa :icon="faGhost"/> {{ $t('proxy-account-config') }}</header>
@@ -37,10 +47,27 @@
 			<ui-info warn>{{ $t('proxy-account-warn') }}</ui-info>
 		</section>
 		<section>
-			<ui-switch v-model="disableRegistration">{{ $t('disable-registration') }}</ui-switch>
+			<header><fa :icon="farEnvelope"/> {{ $t('email-config') }}</header>
+			<ui-switch v-model="enableEmail">{{ $t('enable-email') }}<span slot="desc">{{ $t('email-config-info') }}</span></ui-switch>
+			<ui-input v-model="email" type="email" :disabled="!enableEmail">{{ $t('email') }}</ui-input>
+			<ui-horizon-group inputs>
+				<ui-input v-model="smtpHost" :disabled="!enableEmail">{{ $t('smtp-host') }}</ui-input>
+				<ui-input v-model="smtpPort" type="number" :disabled="!enableEmail">{{ $t('smtp-port') }}</ui-input>
+			</ui-horizon-group>
+			<ui-horizon-group inputs>
+				<ui-input v-model="smtpUser" :disabled="!enableEmail">{{ $t('smtp-user') }}</ui-input>
+				<ui-input v-model="smtpPass" type="password" :withPasswordToggle="true" :disabled="!enableEmail">{{ $t('smtp-pass') }}</ui-input>
+			</ui-horizon-group>
+			<ui-switch v-model="smtpSecure" :disabled="!enableEmail">{{ $t('smtp-secure') }}<span slot="desc">{{ $t('smtp-secure-info') }}</span></ui-switch>
 		</section>
 		<section>
-			<ui-switch v-model="disableLocalTimeline">{{ $t('disable-local-timeline') }}</ui-switch>
+			<header><fa :icon="faBolt"/> {{ $t('serviceworker-config') }}</header>
+			<ui-switch v-model="enableServiceWorker">{{ $t('enable-serviceworker') }}<span slot="desc">{{ $t('serviceworker-info') }}</span></ui-switch>
+			<ui-info>{{ $t('vapid-info') }}<br><code>npm i web-push -g<br>web-push generate-vapid-keys</code></ui-info>
+			<ui-horizon-group inputs class="fit-bottom">
+				<ui-input v-model="swPublicKey" :disabled="!enableServiceWorker"><i slot="icon"><fa icon="key"/></i>{{ $t('vapid-publickey') }}</ui-input>
+				<ui-input v-model="swPrivateKey" :disabled="!enableServiceWorker"><i slot="icon"><fa icon="key"/></i>{{ $t('vapid-privatekey') }}</ui-input>
+			</ui-horizon-group>
 		</section>
 		<section>
 			<header>summaly Proxy</header>
@@ -69,9 +96,11 @@
 		<div slot="title"><fa :icon="['fab', 'twitter']"/> {{ $t('twitter-integration-config') }}</div>
 		<section>
 			<ui-switch v-model="enableTwitterIntegration">{{ $t('enable-twitter-integration') }}</ui-switch>
-			<ui-info>{{ $t('twitter-integration-info') }}</ui-info>
-			<ui-input v-model="twitterConsumerKey" :disabled="!enableTwitterIntegration"><i slot="icon"><fa icon="key"/></i>{{ $t('twitter-integration-consumer-key') }}</ui-input>
-			<ui-input v-model="twitterConsumerSecret" :disabled="!enableTwitterIntegration"><i slot="icon"><fa icon="key"/></i>{{ $t('twitter-integration-consumer-secret') }}</ui-input>
+			<ui-horizon-group>
+				<ui-input v-model="twitterConsumerKey" :disabled="!enableTwitterIntegration"><i slot="icon"><fa icon="key"/></i>{{ $t('twitter-integration-consumer-key') }}</ui-input>
+				<ui-input v-model="twitterConsumerSecret" :disabled="!enableTwitterIntegration"><i slot="icon"><fa icon="key"/></i>{{ $t('twitter-integration-consumer-secret') }}</ui-input>
+			</ui-horizon-group>
+			<ui-info>{{ $t('twitter-integration-info', { url: `${url}/api/tw/cb` }) }}</ui-info>
 			<ui-button @click="updateMeta">{{ $t('save') }}</ui-button>
 		</section>
 	</ui-card>
@@ -80,9 +109,11 @@
 		<div slot="title"><fa :icon="['fab', 'github']"/> {{ $t('github-integration-config') }}</div>
 		<section>
 			<ui-switch v-model="enableGithubIntegration">{{ $t('enable-github-integration') }}</ui-switch>
-			<ui-info>{{ $t('github-integration-info') }}</ui-info>
-			<ui-input v-model="githubClientId" :disabled="!enableGithubIntegration"><i slot="icon"><fa icon="key"/></i>{{ $t('github-integration-client-id') }}</ui-input>
-			<ui-input v-model="githubClientSecret" :disabled="!enableGithubIntegration"><i slot="icon"><fa icon="key"/></i>{{ $t('github-integration-client-secret') }}</ui-input>
+			<ui-horizon-group>
+				<ui-input v-model="githubClientId" :disabled="!enableGithubIntegration"><i slot="icon"><fa icon="key"/></i>{{ $t('github-integration-client-id') }}</ui-input>
+				<ui-input v-model="githubClientSecret" :disabled="!enableGithubIntegration"><i slot="icon"><fa icon="key"/></i>{{ $t('github-integration-client-secret') }}</ui-input>
+			</ui-horizon-group>
+			<ui-info>{{ $t('github-integration-info', { url: `${url}/api/gh/cb` }) }}</ui-info>
 			<ui-button @click="updateMeta">{{ $t('save') }}</ui-button>
 		</section>
 	</ui-card>
@@ -91,9 +122,11 @@
 		<div slot="title"><fa :icon="['fab', 'discord']"/> {{ $t('discord-integration-config') }}</div>
 		<section>
 			<ui-switch v-model="enableDiscordIntegration">{{ $t('enable-discord-integration') }}</ui-switch>
-			<ui-info>{{ $t('discord-integration-info') }}</ui-info>
-			<ui-input v-model="discordClientId" :disabled="!enableDiscordIntegration"><i slot="icon"><fa icon="key"/></i>{{ $t('discord-integration-client-id') }}</ui-input>
-			<ui-input v-model="discordClientSecret" :disabled="!enableDiscordIntegration"><i slot="icon"><fa icon="key"/></i>{{ $t('discord-integration-client-secret') }}</ui-input>
+			<ui-horizon-group>
+				<ui-input v-model="discordClientId" :disabled="!enableDiscordIntegration"><i slot="icon"><fa icon="key"/></i>{{ $t('discord-integration-client-id') }}</ui-input>
+				<ui-input v-model="discordClientSecret" :disabled="!enableDiscordIntegration"><i slot="icon"><fa icon="key"/></i>{{ $t('discord-integration-client-secret') }}</ui-input>
+			</ui-horizon-group>
+			<ui-info>{{ $t('discord-integration-info', { url: `${url}/api/dc/cb` }) }}</ui-info>
 			<ui-button @click="updateMeta">{{ $t('save') }}</ui-button>
 		</section>
 	</ui-card>
@@ -103,21 +136,26 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../i18n';
-import { host } from '../../config';
+import { url, host } from '../../config';
 import { toUnicode } from 'punycode';
-import { faHeadset, faShieldAlt, faGhost, faUserPlus } from '@fortawesome/free-solid-svg-icons';
+import { faHeadset, faShieldAlt, faGhost, faUserPlus, faBolt } from '@fortawesome/free-solid-svg-icons';
+import { faEnvelope as farEnvelope } from '@fortawesome/free-regular-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('admin/views/instance.vue'),
 
 	data() {
 		return {
+			url,
 			host: toUnicode(host),
 			maintainerName: null,
 			maintainerEmail: null,
 			disableRegistration: false,
 			disableLocalTimeline: false,
+			disableGlobalTimeline: false,
+			mascotImageUrl: null,
 			bannerUrl: null,
+			errorImageUrl: null,
 			name: null,
 			description: null,
 			languages: null,
@@ -143,7 +181,17 @@ export default Vue.extend({
 			externalUserRecommendationEngine: null,
 			externalUserRecommendationTimeout: null,
 			summalyProxy: null,
-			faHeadset, faShieldAlt, faGhost, faUserPlus
+			enableEmail: false,
+			email: null,
+			smtpSecure: false,
+			smtpHost: null,
+			smtpPort: null,
+			smtpUser: null,
+			smtpPass: null,
+			enableServiceWorker: false,
+			swPublicKey: null,
+			swPrivateKey: null,
+			faHeadset, faShieldAlt, faGhost, faUserPlus, farEnvelope, faBolt
 		};
 	},
 
@@ -151,7 +199,12 @@ export default Vue.extend({
 		this.$root.getMeta().then(meta => {
 			this.maintainerName = meta.maintainer.name;
 			this.maintainerEmail = meta.maintainer.email;
+			this.disableRegistration = meta.disableRegistration;
+			this.disableLocalTimeline = meta.disableLocalTimeline;
+			this.disableGlobalTimeline = meta.disableGlobalTimeline;
+			this.mascotImageUrl = meta.mascotImageUrl;
 			this.bannerUrl = meta.bannerUrl;
+			this.errorImageUrl = meta.errorImageUrl;
 			this.name = meta.name;
 			this.description = meta.description;
 			this.languages = meta.langs.join(' ');
@@ -176,6 +229,16 @@ export default Vue.extend({
 			this.externalUserRecommendationEngine = meta.externalUserRecommendationEngine;
 			this.externalUserRecommendationTimeout = meta.externalUserRecommendationTimeout;
 			this.summalyProxy = meta.summalyProxy;
+			this.enableEmail = meta.enableEmail;
+			this.email = meta.email;
+			this.smtpSecure = meta.smtpSecure;
+			this.smtpHost = meta.smtpHost;
+			this.smtpPort = meta.smtpPort;
+			this.smtpUser = meta.smtpUser;
+			this.smtpPass = meta.smtpPass;
+			this.enableServiceWorker = meta.enableServiceWorker;
+			this.swPublicKey = meta.swPublickey;
+			this.swPrivateKey = meta.swPrivateKey;
 		});
 	},
 
@@ -184,7 +247,7 @@ export default Vue.extend({
 			this.$root.api('admin/invite').then(x => {
 				this.inviteCode = x.code;
 			}).catch(e => {
-				this.$root.alert({
+				this.$root.dialog({
 					type: 'error',
 					text: e
 				});
@@ -197,7 +260,10 @@ export default Vue.extend({
 				maintainerEmail: this.maintainerEmail,
 				disableRegistration: this.disableRegistration,
 				disableLocalTimeline: this.disableLocalTimeline,
+				disableGlobalTimeline: this.disableGlobalTimeline,
+				mascotImageUrl: this.mascotImageUrl,
 				bannerUrl: this.bannerUrl,
+				errorImageUrl: this.errorImageUrl,
 				name: this.name,
 				description: this.description,
 				langs: this.languages.split(' '),
@@ -221,14 +287,24 @@ export default Vue.extend({
 				enableExternalUserRecommendation: this.enableExternalUserRecommendation,
 				externalUserRecommendationEngine: this.externalUserRecommendationEngine,
 				externalUserRecommendationTimeout: parseInt(this.externalUserRecommendationTimeout, 10),
-				summalyProxy: this.summalyProxy
+				summalyProxy: this.summalyProxy,
+				enableEmail: this.enableEmail,
+				email: this.email,
+				smtpSecure: this.smtpSecure,
+				smtpHost: this.smtpHost,
+				smtpPort: parseInt(this.smtpPort, 10),
+				smtpUser: this.smtpUser,
+				smtpPass: this.smtpPass,
+				enableServiceWorker: this.enableServiceWorker,
+				swPublicKey: this.swPublicKey,
+				swPrivateKey: this.swPrivateKey
 			}).then(() => {
-				this.$root.alert({
+				this.$root.dialog({
 					type: 'success',
 					text: this.$t('saved')
 				});
 			}).catch(e => {
-				this.$root.alert({
+				this.$root.dialog({
 					type: 'error',
 					text: e
 				});
@@ -237,10 +313,3 @@ export default Vue.extend({
 	}
 });
 </script>
-
-<style lang="stylus" scoped>
-.axbwjelsbymowqjyywpirzhdlszoncqs
-	@media (min-width 500px)
-		padding 16px
-
-</style>

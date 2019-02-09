@@ -1,7 +1,7 @@
 import * as mongo from 'mongodb';
-const deepcopy = require('deepcopy');
+import * as deepcopy from 'deepcopy';
 import rap from '@prezzemolo/rap';
-import db from '../db/mongodb';
+import db, { dbLogger } from '../db/mongodb';
 import isObjectId from '../misc/is-objectid';
 import { length } from 'stringz';
 import { IUser, pack as packUser } from './user';
@@ -9,7 +9,6 @@ import { pack as packApp } from './app';
 import PollVote from './poll-vote';
 import Reaction from './note-reaction';
 import { packMany as packFileMany, IDriveFile } from './drive-file';
-import Favorite from './favorite';
 import Following from './following';
 import Emoji from './emoji';
 
@@ -38,11 +37,7 @@ export type INote = {
 	fileIds: mongo.ObjectID[];
 	replyId: mongo.ObjectID;
 	renoteId: mongo.ObjectID;
-	poll: {
-		choices: Array<{
-			id: number;
-		}>
-	};
+	poll: IPoll;
 	text: string;
 	tags: string[];
 	tagsLower: string[];
@@ -56,20 +51,19 @@ export type INote = {
 	repliesCount: number;
 	reactionCounts: any;
 	mentions: mongo.ObjectID[];
-	mentionedRemoteUsers: Array<{
+	mentionedRemoteUsers: {
 		uri: string;
 		username: string;
 		host: string;
-	}>;
+	}[];
 
 	/**
 	 * public ... 公開
 	 * home ... ホームタイムライン(ユーザーページのタイムライン含む)のみに流す
 	 * followers ... フォロワーのみ
 	 * specified ... visibleUserIds で指定したユーザーのみ
-	 * private ... 自分のみ
 	 */
-	visibility: 'public' | 'home' | 'followers' | 'specified' | 'private';
+	visibility: 'public' | 'home' | 'followers' | 'specified';
 
 	visibleUserIds: mongo.ObjectID[];
 
@@ -103,10 +97,20 @@ export type INote = {
 	_files?: IDriveFile[];
 };
 
+export type IPoll = {
+	choices: IChoice[]
+};
+
+export type IChoice = {
+	id: number;
+	text: string;
+	votes: number;
+};
+
 export const hideNote = async (packedNote: any, meId: mongo.ObjectID) => {
 	let hide = false;
 
-	// visibility が private かつ投稿者のIDが自分のIDではなかったら非表示
+	// visibility が private かつ投稿者のIDが自分のIDではなかったら非表示(後方互換性のため)
 	if (packedNote.visibility == 'private' && (meId == null || !meId.equals(packedNote.userId))) {
 		hide = true;
 	}
@@ -134,6 +138,12 @@ export const hideNote = async (packedNote: any, meId: mongo.ObjectID) => {
 		if (meId == null) {
 			hide = true;
 		} else if (meId.equals(packedNote.userId)) {
+			hide = false;
+		} else if (packedNote.reply && meId.equals(packedNote.reply.userId)) {
+			// 自分の投稿に対するリプライ
+			hide = false;
+		} else if (packedNote.mentions && packedNote.mentions.some((id: any) => meId.equals(id))) {
+			// 自分へのメンション
 			hide = false;
 		} else {
 			// フォロワーかどうか
@@ -220,7 +230,7 @@ export const pack = async (
 
 	// (データベースの欠損などで)投稿がデータベース上に見つからなかったとき
 	if (_note == null) {
-		console.warn(`[DAMAGED DB] (missing) pkg: note :: ${note}`);
+		dbLogger.warn(`[DAMAGED DB] (missing) pkg: note :: ${note}`);
 		return null;
 	}
 
@@ -259,6 +269,7 @@ export const pack = async (
 	delete _note._renote;
 	delete _note._files;
 	delete _note._replyIds;
+	delete _note.mentionedRemoteUsers;
 
 	if (_note.geo) delete _note.geo.type;
 
@@ -272,6 +283,11 @@ export const pack = async (
 
 	// Populate files
 	_note.files = packFileMany(_note.fileIds || []);
+
+	// Some counts
+	_note.renoteCount = _note.renoteCount || 0;
+	_note.repliesCount = _note.repliesCount || 0;
+	_note.reactionCounts = _note.reactionCounts || {};
 
 	// 後方互換性のため
 	_note.mediaIds = _note.fileIds;
@@ -329,19 +345,6 @@ export const pack = async (
 
 				return null;
 			})();
-
-			// isFavorited
-			_note.isFavorited = (async () => {
-				const favorite = await Favorite
-					.count({
-						userId: meId,
-						noteId: id
-					}, {
-						limit: 1
-					});
-
-				return favorite === 1;
-			})();
 		}
 	}
 
@@ -350,25 +353,32 @@ export const pack = async (
 
 	//#region (データベースの欠損などで)参照しているデータがデータベース上に見つからなかったとき
 	if (_note.user == null) {
-		console.warn(`[DAMAGED DB] (missing) pkg: note -> user :: ${_note.id} (user ${_note.userId})`);
+		dbLogger.warn(`[DAMAGED DB] (missing) pkg: note -> user :: ${_note.id} (user ${_note.userId})`);
 		return null;
 	}
 
 	if (opts.detail) {
 		if (_note.replyId != null && _note.reply == null) {
-			console.warn(`[DAMAGED DB] (missing) pkg: note -> reply :: ${_note.id} (reply ${_note.replyId})`);
+			dbLogger.warn(`[DAMAGED DB] (missing) pkg: note -> reply :: ${_note.id} (reply ${_note.replyId})`);
 			return null;
 		}
 
 		if (_note.renoteId != null && _note.renote == null) {
-			console.warn(`[DAMAGED DB] (missing) pkg: note -> renote :: ${_note.id} (renote ${_note.renoteId})`);
+			dbLogger.warn(`[DAMAGED DB] (missing) pkg: note -> renote :: ${_note.id} (renote ${_note.renoteId})`);
 			return null;
 		}
 	}
 	//#endregion
 
 	if (_note.user.isCat && _note.text) {
-		_note.text = _note.text.replace(/な/g, 'にゃ').replace(/ナ/g, 'ニャ').replace(/ﾅ/g, 'ﾆｬ');
+		_note.text = (_note.text
+			// ja-JP
+			.replace(/な/g, 'にゃ').replace(/ナ/g, 'ニャ').replace(/ﾅ/g, 'ﾆｬ')
+			// ko-KR
+			.replace(/[나-낳]/g, (match: string) => String.fromCharCode(
+				match.codePointAt(0)  + '냐'.charCodeAt(0) - '나'.charCodeAt(0)
+			))
+		);
 	}
 
 	if (!opts.skipHide) {

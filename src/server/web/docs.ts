@@ -14,10 +14,18 @@ import * as glob from 'glob';
 import * as yaml from 'js-yaml';
 import config from '../../config';
 import { licenseHtml } from '../../misc/license';
-const constants = require('../../const.json');
+import { copyright } from '../../const.json';
 import endpoints from '../api/endpoints';
-const locales = require('../../../locales');
-const nestedProperty = require('nested-property');
+import locales from '../../../locales';
+import * as nestedProperty from 'nested-property';
+
+function getLang(lang: string): string {
+	if (['en-US', 'ja-JP'].includes(lang)) {
+		return lang;
+	} else {
+		return 'en-US';
+	}
+}
 
 async function genVars(lang: string): Promise<{ [key: string]: any }> {
 	const vars = {} as { [key: string]: any };
@@ -30,13 +38,13 @@ async function genVars(lang: string): Promise<{ [key: string]: any }> {
 
 	const entities = glob.sync('src/docs/api/entities/**/*.yaml', { cwd });
 	vars['entities'] = entities.map(x => {
-		const _x = yaml.safeLoad(fs.readFileSync(cwd + x, 'utf-8')) as any;
+		const _x = yaml.safeLoad(fs.readFileSync(cwd + x, 'utf-8'));
 		return _x.name;
 	});
 
 	const docs = glob.sync(`src/docs/**/*.${lang}.md`, { cwd });
 	vars['docs'] = {};
-	docs.forEach(x => {
+	for (const x of docs) {
 		const [, name] = x.match(/docs\/(.+?)\.(.+?)\.md$/);
 		if (vars['docs'][name] == null) {
 			vars['docs'][name] = {
@@ -45,13 +53,13 @@ async function genVars(lang: string): Promise<{ [key: string]: any }> {
 			};
 		}
 		vars['docs'][name]['title'][lang] = fs.readFileSync(cwd + x, 'utf-8').match(/^# (.+?)\r?\n/)[1];
-	});
+	}
 
 	vars['kebab'] = (string: string) => string.replace(/([a-z])([A-Z])/g, '$1-$2').replace(/\s+/g, '-').toLowerCase();
 
 	vars['config'] = config;
 
-	vars['copyright'] = constants.copyright;
+	vars['copyright'] = copyright;
 
 	vars['license'] = licenseHtml;
 
@@ -113,7 +121,7 @@ const parsePropDefinition = (key: string, prop: any) => {
 	return prop;
 };
 
-const sortParams = (params: Array<{ name: string }>) => {
+const sortParams = (params: { name: string }[]) => {
 	return params;
 };
 
@@ -121,7 +129,7 @@ const sortParams = (params: Array<{ name: string }>) => {
 const extractParamDefRef = (params: Context[]) => {
 	let defs: any[] = [];
 
-	params.forEach(param => {
+	for (const param of params) {
 		if (param.data && param.data.ref) {
 			const props = (param as ObjectContext<any>).props;
 			defs.push({
@@ -133,7 +141,7 @@ const extractParamDefRef = (params: Context[]) => {
 
 			defs = defs.concat(childDefs);
 		}
-	});
+	}
 
 	return sortParams(defs);
 };
@@ -141,7 +149,7 @@ const extractParamDefRef = (params: Context[]) => {
 const extractPropDefRef = (props: any[]) => {
 	let defs: any[] = [];
 
-	Object.entries(props).forEach(([k, v]) => {
+	for (const [k, v] of Object.entries(props)) {
 		if (v.props) {
 			defs.push({
 				name: k,
@@ -152,7 +160,7 @@ const extractPropDefRef = (props: any[]) => {
 
 			defs = defs.concat(childDefs);
 		}
-	});
+	}
 
 	return sortParams(defs);
 };
@@ -160,14 +168,14 @@ const extractPropDefRef = (props: any[]) => {
 const router = new Router();
 
 router.get('/assets/*', async ctx => {
-	await send(ctx, ctx.params[0], {
+	await send(ctx as any, ctx.params[0], {
 		root: `${__dirname}/../../docs/assets/`,
 		maxage: ms('1 days')
 	});
 });
 
 router.get('/*/api/endpoints/*', async ctx => {
-	const lang = ctx.params[0];
+	const lang = getLang(ctx.params[0]);
 	const name = ctx.params[1];
 	const ep = endpoints.find(e => e.name === name);
 
@@ -194,10 +202,10 @@ router.get('/*/api/endpoints/*', async ctx => {
 });
 
 router.get('/*/api/entities/*', async ctx => {
-	const lang = ctx.params[0];
+	const lang = getLang(ctx.params[0]);
 	const entity = ctx.params[1];
 
-	const x = yaml.safeLoad(fs.readFileSync(path.resolve(`${__dirname}/../../../src/docs/api/entities/${entity}.yaml`), 'utf-8')) as any;
+	const x = yaml.safeLoad(fs.readFileSync(path.resolve(`${__dirname}/../../../src/docs/api/entities/${entity}.yaml`), 'utf-8'));
 
 	await ctx.render('../../../../src/docs/api/entities/view', Object.assign(await genVars(lang), {
 		id: `api/entities/${entity}`,
@@ -211,7 +219,7 @@ router.get('/*/api/entities/*', async ctx => {
 });
 
 router.get('/*/*', async ctx => {
-	const lang = ctx.params[0];
+	const lang = getLang(ctx.params[0]);
 	const doc = ctx.params[1];
 
 	showdown.extension('urlExtension', () => ({

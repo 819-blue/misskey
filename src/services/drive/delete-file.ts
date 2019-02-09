@@ -2,9 +2,12 @@ import * as Minio from 'minio';
 import DriveFile, { DriveFileChunk, IDriveFile } from '../../models/drive-file';
 import DriveFileThumbnail, { DriveFileThumbnailChunk } from '../../models/drive-file-thumbnail';
 import config from '../../config';
-import driveChart from '../../chart/drive';
-import perUserDriveChart from '../../chart/per-user-drive';
+import driveChart from '../../services/chart/drive';
+import perUserDriveChart from '../../services/chart/per-user-drive';
+import instanceChart from '../../services/chart/instance';
 import DriveFileWebpublic, { DriveFileWebpublicChunk } from '../../models/drive-file-webpublic';
+import Instance from '../../models/instance';
+import { isRemoteUser } from '../../models/user';
 
 export default async function(file: IDriveFile, isExpired = false) {
 	if (file.metadata.storage == 'minio') {
@@ -33,11 +36,24 @@ export default async function(file: IDriveFile, isExpired = false) {
 		files_id: file._id
 	});
 
-	await DriveFile.update({ _id: file._id }, {
-		$set: {
-			'metadata.deletedAt': new Date(),
-			'metadata.isExpired': isExpired
+	const set = {
+		metadata: {
+			deletedAt: new Date(),
+			isExpired: isExpired
 		}
+	} as any;
+
+	// リモートファイル期限切れ削除後は直リンクにする
+	if (isExpired && file.metadata && file.metadata._user && file.metadata._user.host != null) {
+		set.metadata.withoutChunks = true;
+		set.metadata.isRemote = true;
+		set.metadata.url = file.metadata.uri;
+		set.metadata.thumbnailUrl = undefined;
+		set.metadata.webpublicUrl = undefined;
+	}
+
+	await DriveFile.update({ _id: file._id }, {
+		$set: set
 	});
 
 	//#region サムネイルもあれば削除
@@ -71,4 +87,13 @@ export default async function(file: IDriveFile, isExpired = false) {
 	// 統計を更新
 	driveChart.update(file, false);
 	perUserDriveChart.update(file, false);
+	if (isRemoteUser(file.metadata._user)) {
+		instanceChart.updateDrive(file, false);
+		Instance.update({ host: file.metadata._user.host }, {
+			$inc: {
+				driveUsage: -file.length,
+				driveFiles: -1
+			}
+		});
+	}
 }

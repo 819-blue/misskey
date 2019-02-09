@@ -1,5 +1,5 @@
 import $ from 'cafy';
-const escapeRegexp = require('escape-regexp');
+import * as escapeRegexp from 'escape-regexp';
 import User, { pack, validateUsername, IUser } from '../../../../models/user';
 import define from '../../define';
 
@@ -41,11 +41,19 @@ export const meta = {
 				'ja-JP': 'ローカルユーザーのみ検索対象にするか否か'
 			}
 		},
+
+		detail: {
+			validator: $.bool.optional,
+			default: true,
+			desc: {
+				'ja-JP': '詳細なユーザー情報を含めるか否か'
+			}
+		},
 	},
 };
 
 export default define(meta, (ps, me) => new Promise(async (res, rej) => {
-	const isUsername = validateUsername(ps.query.replace('@', ''));
+	const isUsername = validateUsername(ps.query.replace('@', ''), !ps.localOnly);
 
 	let users: IUser[] = [];
 
@@ -70,86 +78,7 @@ export default define(meta, (ps, me) => new Promise(async (res, rej) => {
 
 			users = users.concat(otherUsers);
 		}
-
-		if (users.length < ps.limit) {
-			const otherUsers = await User
-				.find({
-					_id: { $nin: users.map(u => u._id) },
-					host: null,
-					usernameLower: new RegExp(escapeRegexp(ps.query.replace('@', '').toLowerCase()))
-				}, {
-					limit: ps.limit - users.length
-				});
-
-			users = users.concat(otherUsers);
-		}
-
-		if (users.length < ps.limit && !ps.localOnly) {
-			const otherUsers = await User
-				.find({
-					_id: { $nin: users.map(u => u._id) },
-					host: { $ne: null },
-					usernameLower: new RegExp(escapeRegexp(ps.query.replace('@', '').toLowerCase()))
-				}, {
-					limit: ps.limit - users.length
-				});
-
-			users = users.concat(otherUsers);
-		}
 	}
 
-	if (users.length < ps.limit) {
-		const otherUsers = await User
-			.find({
-				_id: { $nin: users.map(u => u._id) },
-				host: null,
-				name: new RegExp('^' + escapeRegexp(ps.query.toLowerCase()))
-			}, {
-				limit: ps.limit - users.length
-			});
-
-		users = users.concat(otherUsers);
-	}
-
-	if (users.length < ps.limit && !ps.localOnly) {
-		const otherUsers = await User
-			.find({
-				_id: { $nin: users.map(u => u._id) },
-				host: { $ne: null },
-				name: new RegExp('^' + escapeRegexp(ps.query.toLowerCase()))
-			}, {
-				limit: ps.limit - users.length
-			});
-
-		users = users.concat(otherUsers);
-	}
-
-	if (users.length < ps.limit) {
-		const otherUsers = await User
-			.find({
-				_id: { $nin: users.map(u => u._id) },
-				host: null,
-				name: new RegExp(escapeRegexp(ps.query.toLowerCase()))
-			}, {
-				limit: ps.limit - users.length
-			});
-
-		users = users.concat(otherUsers);
-	}
-
-	if (users.length < ps.limit && !ps.localOnly) {
-		const otherUsers = await User
-			.find({
-				_id: { $nin: users.map(u => u._id) },
-				host: { $ne: null },
-				name: new RegExp(escapeRegexp(ps.query.toLowerCase()))
-			}, {
-				limit: ps.limit - users.length
-			});
-
-		users = users.concat(otherUsers);
-	}
-
-	// Serialize
-	res(await Promise.all(users.map(user => pack(user, me, { detail: true }))));
+	res(await Promise.all(users.map(user => pack(user, me, { detail: ps.detail }))));
 }));

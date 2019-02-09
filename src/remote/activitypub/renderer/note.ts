@@ -93,20 +93,37 @@ export default async function renderNote(note: INote, dive = true): Promise<any>
 
 	let text = note.text;
 
+	let question: string;
 	if (note.poll != null) {
 		if (text == null) text = '';
 		const url = `${config.url}/notes/${note._id}`;
 		// TODO: i18n
-		text += `\n\n[投票を見る](${url})`;
+		text += `\n[リモートで結果を表示](${url})`;
+
+		question = `${config.url}/questions/${note._id}`;
 	}
 
-	if (note.renoteId != null) {
-		if (text == null) text = '';
-		const url = `${config.url}/notes/${note.renoteId}`;
-		text += `\n\nRE: ${url}`;
+	let apText = text;
+	if (apText == null) apText = '';
+
+	// Provides choices as text for AP
+	if (note.poll != null) {
+		const cs = note.poll.choices.map(c => `${c.id}: ${c.text}`);
+		apText += '\n----------------------------------------\n';
+		apText += cs.join('\n');
+		apText += '\n----------------------------------------\n';
+		apText += '番号を返信して投票';
 	}
 
-	const content = toHtml(Object.assign({}, note, { text }));
+	if (quote) {
+		apText += `\n\nRE: ${quote}`;
+	}
+
+	const summary = note.cw === '' ? String.fromCharCode(0x200B) : note.cw;
+
+	const content = toHtml(Object.assign({}, note, {
+		text: apText
+	}));
 
 	const emojis = await getEmojis(note.emojis);
 	const apemojis = emojis.map(emoji => renderEmoji(emoji));
@@ -121,10 +138,11 @@ export default async function renderNote(note: INote, dive = true): Promise<any>
 		id: `${config.url}/notes/${note._id}`,
 		type: 'Note',
 		attributedTo,
-		summary: note.cw,
+		summary,
 		content,
 		_misskey_content: text,
 		_misskey_quote: quote,
+		_misskey_question: question,
 		published: note.createdAt.toISOString(),
 		to,
 		cc,
@@ -135,7 +153,7 @@ export default async function renderNote(note: INote, dive = true): Promise<any>
 	};
 }
 
-async function getEmojis(names: string[]): Promise<IEmoji[]> {
+export async function getEmojis(names: string[]): Promise<IEmoji[]> {
 	if (names == null || names.length < 1) return [];
 
 	const emojis = await Promise.all(

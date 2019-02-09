@@ -138,6 +138,19 @@ if ((config as any).user_recommendation) {
 		}
 	});
 }
+if ((config as any).sw) {
+	Meta.findOne({}).then(m => {
+		if (m != null && m.enableServiceWorker == null) {
+			Meta.update({}, {
+				$set: {
+					enableServiceWorker: true,
+					swPublicKey: (config as any).sw.public_key,
+					swPrivateKey: (config as any).sw.private_key
+				}
+			});
+		}
+	});
+}
 
 export type IMeta = {
 	name?: string;
@@ -171,8 +184,11 @@ export type IMeta = {
 
 	disableRegistration?: boolean;
 	disableLocalTimeline?: boolean;
+	disableGlobalTimeline?: boolean;
 	hidedTags?: string[];
+	mascotImageUrl?: string;
 	bannerUrl?: string;
+	errorImageUrl?: string;
 
 	cacheRemoteFiles?: boolean;
 
@@ -193,7 +209,7 @@ export type IMeta = {
 	remoteDriveCapacityMb?: number;
 
 	/**
-	 * Max allowed note text length in charactors
+	 * Max allowed note text length in characters
 	 */
 	maxNoteTextLength?: number;
 
@@ -214,4 +230,16 @@ export type IMeta = {
 	enableExternalUserRecommendation?: boolean;
 	externalUserRecommendationEngine?: string;
 	externalUserRecommendationTimeout?: number;
+
+	enableEmail?: boolean;
+	email?: string;
+	smtpSecure?: boolean;
+	smtpHost?: string;
+	smtpPort?: number;
+	smtpUser?: string;
+	smtpPass?: string;
+
+	enableServiceWorker?: boolean;
+	swPublicKey?: string;
+	swPrivateKey?: string;
 };

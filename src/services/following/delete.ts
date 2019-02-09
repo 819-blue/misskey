@@ -1,11 +1,17 @@
 import User, { isLocalUser, isRemoteUser, pack as packUser, IUser } from '../../models/user';
 import Following from '../../models/following';
-import { publishMainStream } from '../../stream';
-import pack from '../../remote/activitypub/renderer';
+import { publishMainStream } from '../stream';
+import { renderActivity } from '../../remote/activitypub/renderer';
 import renderFollow from '../../remote/activitypub/renderer/follow';
 import renderUndo from '../../remote/activitypub/renderer/undo';
 import { deliver } from '../../queue';
-import perUserFollowingChart from '../../chart/per-user-following';
+import perUserFollowingChart from '../../services/chart/per-user-following';
+import Logger from '../../misc/logger';
+import { registerOrFetchInstanceDoc } from '../register-or-fetch-instance-doc';
+import Instance from '../../models/instance';
+import instanceChart from '../../services/chart/instance';
+
+const logger = new Logger('following/delete');
 
 export default async function(follower: IUser, followee: IUser) {
 	const following = await Following.findOne({
@@ -14,7 +20,7 @@ export default async function(follower: IUser, followee: IUser) {
 	});
 
 	if (following == null) {
-		console.warn('フォロー解除がリクエストされましたがフォローしていませんでした');
+		logger.warn('フォロー解除がリクエストされましたがフォローしていませんでした');
 		return;
 	}
 
@@ -38,6 +44,30 @@ export default async function(follower: IUser, followee: IUser) {
 	});
 	//#endregion
 
+	//#region Update instance stats
+	if (isRemoteUser(follower) && isLocalUser(followee)) {
+		registerOrFetchInstanceDoc(follower.host).then(i => {
+			Instance.update({ _id: i._id }, {
+				$inc: {
+					followingCount: -1
+				}
+			});
+
+			instanceChart.updateFollowing(i.host, false);
+		});
+	} else if (isLocalUser(follower) && isRemoteUser(followee)) {
+		registerOrFetchInstanceDoc(followee.host).then(i => {
+			Instance.update({ _id: i._id }, {
+				$inc: {
+					followersCount: -1
+				}
+			});
+
+			instanceChart.updateFollowers(i.host, false);
+		});
+	}
+	//#endregion
+
 	perUserFollowingChart.update(follower, followee, false);
 
 	// Publish unfollow event
@@ -48,7 +78,7 @@ export default async function(follower: IUser, followee: IUser) {
 	}
 
 	if (isLocalUser(follower) && isRemoteUser(followee)) {
-		const content = pack(renderUndo(renderFollow(follower, followee), follower));
+		const content = renderActivity(renderUndo(renderFollow(follower, followee), follower));
 		deliver(follower, content, followee.inbox);
 	}
 }

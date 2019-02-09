@@ -111,7 +111,7 @@ export default Vue.extend({
 			this.connection = this.$root.stream.useSharedConnection('main');
 
 			this.connection.on('reversiInvited', this.onReversiInvited);
-			this.connection.on('reversi_no_invites', this.onReversiNoInvites);
+			this.connection.on('reversiNoInvites', this.onReversiNoInvites);
 		}
 	},
 
@@ -171,16 +171,16 @@ export default Vue.extend({
 
 		openNotifications() {
 			this.showNotifications = true;
-			Array.from(document.querySelectorAll('body *')).forEach(el => {
+			for (const el of Array.from(document.querySelectorAll('body *'))) {
 				el.addEventListener('mousedown', this.onMousedown);
-			});
+			}
 		},
 
 		closeNotifications() {
 			this.showNotifications = false;
-			Array.from(document.querySelectorAll('body *')).forEach(el => {
+			for (const el of Array.from(document.querySelectorAll('body *'))) {
 				el.removeEventListener('mousedown', this.onMousedown);
-			});
+			}
 		},
 
 		onMousedown(e) {

@@ -19,7 +19,6 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import * as anime from 'animejs';
 import { env } from '../../../config';
 
 export default Vue.extend({
@@ -45,13 +44,13 @@ export default Vue.extend({
 	},
 
 	mounted() {
-		this.$store.commit('setUiHeaderHeight', this.$refs.root.offsetHeight);
+		this.$store.commit('setUiHeaderHeight', 48);
 
 		if (this.$store.getters.isSignedIn) {
 			this.connection = this.$root.stream.useSharedConnection('main');
 
 			this.connection.on('reversiInvited', this.onReversiInvited);
-			this.connection.on('reversi_no_invites', this.onReversiNoInvites);
+			this.connection.on('reversiNoInvites', this.onReversiNoInvites);
 		}
 	},
 
@@ -79,9 +78,11 @@ export default Vue.extend({
 
 	position fixed
 	top 0
+	left -8px
 	z-index 1024
-	width 100%
-	box-shadow 0 1px 0 rgba(#000, 0.075)
+	width calc(100% + 16px)
+	padding 0 8px
+	box-shadow 0 0px 8px rgba(0, 0, 0, 0.25)
 
 	&, *
 		user-select none
@@ -157,7 +158,7 @@ export default Vue.extend({
 				left 8px
 				pointer-events none
 				font-size 10px
-				color var(--primary)
+				color var(--notificationIndicator)
 
 			> button:last-child
 				display block

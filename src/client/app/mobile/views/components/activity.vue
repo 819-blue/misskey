@@ -6,7 +6,7 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import * as ApexCharts from 'apexcharts';
+import ApexCharts from 'apexcharts';
 
 export default Vue.extend({
 	props: ['user'],
@@ -59,8 +59,7 @@ export default Vue.extend({
 				},
 				plotOptions: {
 					bar: {
-						columnWidth: '90%',
-						endingShape: 'rounded'
+						columnWidth: '90%'
 					}
 				},
 				grid: {

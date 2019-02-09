@@ -1,7 +1,7 @@
 import * as mongo from 'mongodb';
-const deepcopy = require('deepcopy');
+import * as deepcopy from 'deepcopy';
 import rap from '@prezzemolo/rap';
-import db from '../db/mongodb';
+import db, { dbLogger } from '../db/mongodb';
 import isObjectId from '../misc/is-objectid';
 import { packMany as packNoteMany } from './note';
 import Following from './following';
@@ -11,11 +11,13 @@ import { getFriendIds } from '../server/api/common/get-friends';
 import config from '../config';
 import FollowRequest from './follow-request';
 import fetchMeta from '../misc/fetch-meta';
+import Emoji from './emoji';
 
 const User = db.get<IUser>('users');
 
 User.createIndex('username');
 User.createIndex('usernameLower');
+User.createIndex('host');
 User.createIndex(['username', 'host'], { unique: true });
 User.createIndex(['usernameLower', 'host'], { unique: true });
 User.createIndex('token', { sparse: true, unique: true });
@@ -44,12 +46,20 @@ type IUserBase = {
 	wallpaperUrl?: string;
 	data: any;
 	description: string;
+	lang?: string;
 	pinnedNoteIds: mongo.ObjectID[];
+	emojis?: string[];
+	tags?: string[];
 
 	/**
 	 * 凍結されているか否か
 	 */
 	isSuspended: boolean;
+
+	/**
+	 * サイレンスされているか否か
+	 */
+	isSilenced: boolean;
 
 	/**
 	 * 鍵アカウントか否か
@@ -67,6 +77,11 @@ type IUserBase = {
 	carefulBot: boolean;
 
 	/**
+	 * フォローしているユーザーからのフォローリクエストを自動承認するか
+	 */
+	autoAcceptFollowed: boolean;
+
+	/**
 	 * このアカウントに届いているフォローリクエストの数
 	 */
 	pendingReceivedFollowRequestsCount: number;
@@ -78,6 +93,8 @@ export interface ILocalUser extends IUserBase {
 	host: null;
 	keypair: string;
 	email: string;
+	emailVerified?: boolean;
+	emailVerifyCode?: string;
 	password: string;
 	token: string;
 	twitter: {
@@ -99,14 +116,15 @@ export interface ILocalUser extends IUserBase {
 		username: string;
 		discriminator: string;
 	};
-	line: {
-		userId: string;
-	};
 	profile: {
 		location: string;
 		birthday: string; // 'YYYY-MM-DD'
 		tags: string[];
 	};
+	fields?: {
+		name: string;
+		value: string;
+	}[];
 	isCat: boolean;
 	isAdmin?: boolean;
 	isModerator?: boolean;
@@ -148,8 +166,8 @@ export const isRemoteUser = (user: any): user is IRemoteUser =>
 	!isLocalUser(user);
 
 //#region Validators
-export function validateUsername(username: string): boolean {
-	return typeof username == 'string' && /^[a-zA-Z0-9_]{1,20}$/.test(username);
+export function validateUsername(username: string, remote?: boolean): boolean {
+	return typeof username == 'string' && (remote ? /^\w([\w-]*\w)?$/ : /^\w{1,20}$/).test(username);
 }
 
 export function validatePassword(password: string): boolean {
@@ -206,8 +224,8 @@ export async function getRelation(me: mongo.ObjectId, target: mongo.ObjectId) {
 	]);
 
 	return {
+		id: target,
 		isFollowing: following1 !== null,
-		isStalking: following1 ? following1.stalk : false,
 		hasPendingFollowRequestFromYou: followReq1 !== null,
 		hasPendingFollowRequestToYou: followReq2 !== null,
 		isFollowed: following2 !== null,
@@ -247,6 +265,7 @@ export const pack = (
 		host: true,
 		avatarColor: true,
 		avatarUrl: true,
+		emojis: true,
 		isCat: true,
 		isBot: true,
 		isAdmin: true,
@@ -268,7 +287,7 @@ export const pack = (
 
 	// (データベースの欠損などで)ユーザーがデータベース上に見つからなかったとき
 	if (_user == null) {
-		console.warn(`user not found on database: ${user}`);
+		dbLogger.warn(`user not found on database: ${user}`);
 		return resolve(null);
 	}
 
@@ -286,6 +305,7 @@ export const pack = (
 	delete _user._id;
 
 	delete _user.usernameLower;
+	delete _user.emailVerifyCode;
 
 	if (_user.host == null) {
 		// Remove private properties
@@ -293,6 +313,7 @@ export const pack = (
 		delete _user.password;
 		delete _user.token;
 		delete _user.twoFactorTempSecret;
+		delete _user.two_factor_temp_secret; // 後方互換性のため
 		delete _user.twoFactorSecret;
 		if (_user.twitter) {
 			delete _user.twitter.accessToken;
@@ -306,11 +327,11 @@ export const pack = (
 			delete _user.discord.refreshToken;
 			delete _user.discord.expiresDate;
 		}
-		delete _user.line;
 
 		// Visible via only the official client
 		if (!opts.includeSecrets) {
 			delete _user.email;
+			delete _user.emailVerified;
 			delete _user.settings;
 			delete _user.clientSettings;
 		}
@@ -338,7 +359,6 @@ export const pack = (
 
 		_user.isFollowing = relation.isFollowing;
 		_user.isFollowed = relation.isFollowed;
-		_user.isStalking = relation.isStalking;
 		_user.hasPendingFollowRequestFromYou = relation.hasPendingFollowRequestFromYou;
 		_user.hasPendingFollowRequestToYou = relation.hasPendingFollowRequestToYou;
 		_user.isBlocking = relation.isBlocking;
@@ -374,6 +394,16 @@ export const pack = (
 	if (!opts.includeHasUnreadNotes) {
 		delete _user.hasUnreadSpecifiedNotes;
 		delete _user.hasUnreadMentions;
+	}
+
+	// カスタム絵文字添付
+	if (_user.emojis) {
+		_user.emojis = Emoji.find({
+			name: { $in: _user.emojis },
+			host: _user.host
+		}, {
+			fields: { _id: false }
+		});
 	}
 
 	// resolve promises in _user object

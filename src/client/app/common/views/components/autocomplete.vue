@@ -3,7 +3,9 @@
 	<ol class="users" ref="suggests" v-if="users.length > 0">
 		<li v-for="user in users" @click="complete(type, user)" @keydown="onKeydown" tabindex="-1">
 			<img class="avatar" :src="user.avatarUrl" alt=""/>
-			<span class="name">{{ user | userName }}</span>
+			<span class="name">
+				<mk-user-name :user="user"/>
+			</span>
 			<span class="username">@{{ user | acct }}</span>
 		</li>
 	</ol>
@@ -42,8 +44,9 @@ const lib = Object.entries(emojilib.lib).filter((x: any) => {
 });
 
 const char2file = (char: string) => {
-	let codes = [...char].map(x => x.codePointAt(0).toString(16));
+	let codes = Array.from(char).map(x => x.codePointAt(0).toString(16));
 	if (!codes.includes('200d')) codes = codes.filter(x => x != 'fe0f');
+	codes = codes.filter(x => x && x.length);
 	return codes.join('-');
 };
 
@@ -54,18 +57,18 @@ const emjdb: EmojiDef[] = lib.map((x: any) => ({
 	url: `https://twemoji.maxcdn.com/2/svg/${char2file(x[1].char)}.svg`
 }));
 
-lib.forEach((x: any) => {
+for (const x of lib as any) {
 	if (x[1].keywords) {
-		x[1].keywords.forEach(k => {
+		for (const k of x[1].keywords) {
 			emjdb.push({
 				emoji: x[1].char,
 				name: k,
 				aliasOf: x[0],
 				url: `https://twemoji.maxcdn.com/2/svg/${char2file(x[1].char)}.svg`
 			});
-		});
+		}
 	}
-});
+}
 
 emjdb.sort((a, b) => a.name.length - b.name.length);
 
@@ -117,7 +120,7 @@ export default Vue.extend({
 		const customEmojis = (this.$root.getMetaSync() || { emojis: [] }).emojis || [];
 		const emojiDefinitions: EmojiDef[] = [];
 
-		customEmojis.forEach(x => {
+		for (const x of customEmojis) {
 			emojiDefinitions.push({
 				name: x.name,
 				emoji: `:${x.name}:`,
@@ -126,7 +129,7 @@ export default Vue.extend({
 			});
 
 			if (x.aliases) {
-				x.aliases.forEach(alias => {
+				for (const alias of x.aliases) {
 					emojiDefinitions.push({
 						name: alias,
 						aliasOf: x.name,
@@ -134,9 +137,9 @@ export default Vue.extend({
 						url: x.url,
 						isCustomEmoji: true
 					});
-				});
+				}
 			}
-		});
+		}
 
 		emojiDefinitions.sort((a, b) => a.name.length - b.name.length);
 
@@ -145,9 +148,9 @@ export default Vue.extend({
 
 		this.textarea.addEventListener('keydown', this.onKeydown);
 
-		Array.from(document.querySelectorAll('body *')).forEach(el => {
+		for (const el of Array.from(document.querySelectorAll('body *'))) {
 			el.addEventListener('mousedown', this.onMousedown);
-		});
+		}
 
 		this.$nextTick(() => {
 			this.exec();
@@ -163,18 +166,18 @@ export default Vue.extend({
 	beforeDestroy() {
 		this.textarea.removeEventListener('keydown', this.onKeydown);
 
-		Array.from(document.querySelectorAll('body *')).forEach(el => {
+		for (const el of Array.from(document.querySelectorAll('body *'))) {
 			el.removeEventListener('mousedown', this.onMousedown);
-		});
+		}
 	},
 
 	methods: {
 		exec() {
 			this.select = -1;
 			if (this.$refs.suggests) {
-				Array.from(this.items).forEach(el => {
+				for (const el of Array.from(this.items)) {
 					el.removeAttribute('data-selected');
-				});
+				}
 			}
 
 			if (this.type == 'user') {
@@ -187,7 +190,8 @@ export default Vue.extend({
 				} else {
 					this.$root.api('users/search', {
 						query: this.q,
-						limit: 30
+						limit: 10,
+						detail: false
 					}).then(users => {
 						this.users = users;
 						this.fetching = false;
@@ -312,9 +316,9 @@ export default Vue.extend({
 		},
 
 		applySelect() {
-			Array.from(this.items).forEach(el => {
+			for (const el of Array.from(this.items)) {
 				el.removeAttribute('data-selected');
-			});
+			}
 
 			this.items[this.select].setAttribute('data-selected', 'true');
 			(this.items[this.select] as any).focus();

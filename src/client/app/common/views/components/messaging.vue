@@ -14,7 +14,7 @@
 					tabindex="-1"
 				>
 					<mk-avatar class="avatar" :user="user"/>
-					<span class="name">{{ user | userName }}</span>
+					<span class="name"><mk-user-name :user="user"/></span>
 					<span class="username">@{{ user | acct }}</span>
 				</li>
 			</ol>
@@ -33,7 +33,7 @@
 				<div>
 					<mk-avatar class="avatar" :user="isMe(message) ? message.recipient : message.user"/>
 					<header>
-						<span class="name">{{ isMe(message) ? message.recipient : message.user | userName }}</span>
+						<span class="name"><mk-user-name :user="isMe(message) ? message.recipient : message.user"/></span>
 						<span class="username">@{{ isMe(message) ? message.recipient : message.user | acct }}</span>
 						<mk-time :time="message.createdAt"/>
 					</header>
@@ -103,10 +103,10 @@ export default Vue.extend({
 			this.messages.unshift(message);
 		},
 		onRead(ids) {
-			ids.forEach(id => {
+			for (const id of ids) {
 				const found = this.messages.find(m => m.id == id);
 				if (found) found.isRead = true;
-			});
+			}
 		},
 		search() {
 			if (this.q == '') {
@@ -115,9 +115,11 @@ export default Vue.extend({
 			}
 			this.$root.api('users/search', {
 				query: this.q,
-				max: 5
+				localOnly: true,
+				limit: 10,
+				detail: false
 			}).then(users => {
-				this.result = users;
+				this.result = users.filter(user => user.id != this.$store.state.i.id);
 			});
 		},
 		navigate(user) {
@@ -418,7 +420,7 @@ export default Vue.extend({
 		margin 0
 		padding 16px
 		text-align center
-		color #aaa
+		color var(--text)
 
 		> [data-icon]
 			margin-right 4px

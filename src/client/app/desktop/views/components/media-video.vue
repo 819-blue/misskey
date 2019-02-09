@@ -1,5 +1,5 @@
 <template>
-<div class="uofhebxjdgksfmltszlxurtjnjjsvioh" v-if="video.isSensitive && hide" @click="hide = false">
+<div class="uofhebxjdgksfmltszlxurtjnjjsvioh" v-if="video.isSensitive && hide && !$store.state.device.alwaysShowNsfw" @click="hide = false">
 	<div>
 		<b><fa icon="exclamation-triangle"/> {{ $t('sensitive') }}</b>
 		<span>{{ $t('click-to-show') }}</span>
@@ -41,7 +41,7 @@ export default Vue.extend({
 	computed: {
 		imageStyle(): any {
 			return {
-				'background-image': null // TODO `url(${this.video.thumbnailUrl})`
+				'background-image': `url(${this.video.thumbnailUrl})`
 			};
 		}
 	},

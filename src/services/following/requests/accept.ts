@@ -1,14 +1,19 @@
-import User, { IUser, isRemoteUser, ILocalUser, pack as packUser } from '../../../models/user';
+import User, { IUser, isRemoteUser, ILocalUser, pack as packUser, isLocalUser } from '../../../models/user';
 import FollowRequest from '../../../models/follow-request';
-import pack from '../../../remote/activitypub/renderer';
+import { renderActivity } from '../../../remote/activitypub/renderer';
 import renderFollow from '../../../remote/activitypub/renderer/follow';
 import renderAccept from '../../../remote/activitypub/renderer/accept';
 import { deliver } from '../../../queue';
 import Following from '../../../models/following';
-import { publishMainStream } from '../../../stream';
-import perUserFollowingChart from '../../../chart/per-user-following';
+import { publishMainStream } from '../../stream';
+import perUserFollowingChart from '../../../services/chart/per-user-following';
+import Logger from '../../../misc/logger';
+
+const logger = new Logger('following/requests/accept');
 
 export default async function(followee: IUser, follower: IUser) {
+	let incremented = 1;
+
 	await Following.insert({
 		createdAt: new Date(),
 		followerId: follower._id,
@@ -25,6 +30,13 @@ export default async function(followee: IUser, follower: IUser) {
 			inbox: isRemoteUser(followee) ? followee.inbox : undefined,
 			sharedInbox: isRemoteUser(followee) ? followee.sharedInbox : undefined
 		}
+	}).catch(e => {
+		if (e.code === 11000 && isRemoteUser(follower) && isLocalUser(followee)) {
+			logger.info(`Accept => Insert duplicated ignore. ${follower._id} => ${followee._id}`);
+			incremented = 0;
+		} else {
+			throw e;
+		}
 	});
 
 	if (isRemoteUser(follower)) {
@@ -33,7 +45,7 @@ export default async function(followee: IUser, follower: IUser) {
 			followerId: follower._id
 		});
 
-		const content = pack(renderAccept(renderFollow(follower, followee, request.requestId), followee as ILocalUser));
+		const content = renderActivity(renderAccept(renderFollow(follower, followee, request.requestId), followee as ILocalUser));
 		deliver(followee as ILocalUser, content, follower.inbox);
 	}
 
@@ -45,7 +57,7 @@ export default async function(followee: IUser, follower: IUser) {
 	//#region Increment following count
 	await User.update({ _id: follower._id }, {
 		$inc: {
-			followingCount: 1
+			followingCount: incremented
 		}
 	});
 	//#endregion
@@ -53,7 +65,7 @@ export default async function(followee: IUser, follower: IUser) {
 	//#region Increment followers count
 	await User.update({ _id: followee._id }, {
 		$inc: {
-			followersCount: 1
+			followersCount: incremented
 		}
 	});
 	//#endregion

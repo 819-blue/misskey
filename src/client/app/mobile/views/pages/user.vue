@@ -1,26 +1,38 @@
 <template>
 <mk-ui>
-	<template slot="header" v-if="!fetching"><img :src="user.avatarUrl" alt="">{{ user | userName }}</template>
+	<template slot="header" v-if="!fetching"><img :src="avator" alt="">
+		<mk-user-name :user="user"/>
+	</template>
 	<main v-if="!fetching">
-		<div class="is-suspended" v-if="user.isSuspended"><p><fa icon="exclamation-triangle"/> {{ $t('is-suspended') }}</p></div>
+		<div class="is-suspended" v-if="user.isSuspended"><p><fa icon="exclamation-triangle"/> {{ $t('@.user-suspended') }}</p></div>
 		<div class="is-remote" v-if="user.host != null"><p><fa icon="exclamation-triangle"/> {{ $t('@.is-remote-user') }}<a :href="user.url || user.uri" target="_blank">{{ $t('@.view-on-remote') }}</a></p></div>
 		<header>
 			<div class="banner" :style="style"></div>
 			<div class="body">
 				<div class="top">
 					<a class="avatar">
-						<img :src="user.avatarUrl" alt="avatar"/>
+						<img :src="avator" alt="avatar"/>
 					</a>
 					<button class="menu" ref="menu" @click="menu"><fa icon="ellipsis-h"/></button>
 					<mk-follow-button v-if="$store.getters.isSignedIn && $store.state.i.id != user.id" :user="user"/>
 				</div>
 				<div class="title">
-					<h1>{{ user | userName }}</h1>
+					<h1><mk-user-name :user="user"/></h1>
 					<span class="username"><mk-acct :user="user" :detail="true" /></span>
 					<span class="followed" v-if="user.isFollowed">{{ $t('follows-you') }}</span>
 				</div>
 				<div class="description">
-					<misskey-flavored-markdown v-if="user.description" :text="user.description" :author="user" :i="$store.state.i"/>
+					<mfm v-if="user.description" :text="user.description" :author="user" :i="$store.state.i" :custom-emojis="user.emojis"/>
+				</div>
+				<div class="fields" v-if="user.fields">
+					<dl class="field" v-for="(field, i) in user.fields" :key="i">
+						<dt class="name">
+							<mfm :text="field.name" :should-break="false" :plain-text="true" :custom-emojis="user.emojis"/>
+						</dt>
+						<dd class="value">
+							<mfm :text="field.value" :author="user" :i="$store.state.i" :custom-emojis="user.emojis"/>
+						</dd>
+					</dl>
 				</div>
 				<div class="info">
 					<p class="location" v-if="user.host === null && user.profile.location">
@@ -68,8 +80,9 @@ import i18n from '../../../i18n';
 import * as age from 's-age';
 import parseAcct from '../../../../../misc/acct/parse';
 import Progress from '../../../common/scripts/loading';
-import Menu from '../../../common/views/components/menu.vue';
+import XUserMenu from '../../../common/views/components/user-menu.vue';
 import XHome from './user/home.vue';
+import { getStaticImageUrl } from '../../../common/scripts/get-static-image-url';
 
 export default Vue.extend({
 	i18n: i18n('mobile/views/pages/user.vue'),
@@ -86,6 +99,11 @@ export default Vue.extend({
 	computed: {
 		age(): number {
 			return age(this.user.profile.birthday);
+		},
+		avator(): string {
+			return this.$store.state.device.disableShowingAnimatedImages
+				? getStaticImageUrl(this.user.avatarUrl)
+				: this.user.avatarUrl;
 		},
 		style(): any {
 			if (this.user.bannerUrl == null) return {};
@@ -115,56 +133,9 @@ export default Vue.extend({
 		},
 
 		menu() {
-			let menu = [{
-				icon: this.user.isMuted ? ['fas', 'eye'] : ['far', 'eye-slash'],
-				text: this.user.isMuted ? this.$t('unmute') : this.$t('mute'),
-				action: () => {
-					if (this.user.isMuted) {
-						this.$root.api('mute/delete', {
-							userId: this.user.id
-						}).then(() => {
-							this.user.isMuted = false;
-						}, () => {
-							alert('error');
-						});
-					} else {
-						this.$root.api('mute/create', {
-							userId: this.user.id
-						}).then(() => {
-							this.user.isMuted = true;
-						}, () => {
-							alert('error');
-						});
-					}
-				}
-			}, {
-				icon: 'ban',
-				text: this.user.isBlocking ? this.$t('unblock') : this.$t('block'),
-				action: () => {
-					if (this.user.isBlocking) {
-						this.$root.api('blocking/delete', {
-							userId: this.user.id
-						}).then(() => {
-							this.user.isBlocking = false;
-						}, () => {
-							alert('error');
-						});
-					} else {
-						this.$root.api('blocking/create', {
-							userId: this.user.id
-						}).then(() => {
-							this.user.isBlocking = true;
-						}, () => {
-							alert('error');
-						});
-					}
-				}
-			}];
-
-			this.$root.new(Menu, {
+			this.$root.new(XUserMenu, {
 				source: this.$refs.menu,
-				compact: true,
-				items: menu
+				user: this.user
 			});
 		},
 	}
@@ -271,6 +242,34 @@ main
 				margin 8px 0
 				color var(--mobileUserPageDescription)
 
+			> .fields
+				margin 8px 0
+
+				> .field
+					display flex
+					padding 0
+					margin 0
+					align-items center
+
+					> .name
+						padding 4px
+						margin 4px
+						width 30%
+						overflow hidden
+						white-space nowrap
+						text-overflow ellipsis
+						font-weight bold
+						color var(--mobileUserPageStatusHighlight)
+
+					> .value
+						padding 4px
+						margin 4px
+						width 70%
+						overflow hidden
+						white-space nowrap
+						text-overflow ellipsis
+						color var(--mobileUserPageStatusHighlight)
+
 			> .info
 				margin 8px 0
 
@@ -296,6 +295,9 @@ main
 
 					> i
 						font-size 14px
+
+				> button
+					color var(--text)
 
 	> nav
 		position -webkit-sticky
@@ -334,6 +336,7 @@ main
 		max-width 680px
 		margin 0 auto
 		padding 8px
+		color var(--text)
 
 		@media (min-width 500px)
 			padding 16px

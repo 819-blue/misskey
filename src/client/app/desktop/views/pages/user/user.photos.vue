@@ -3,8 +3,8 @@
 	<p class="title"><fa icon="camera"/>{{ $t('title') }}</p>
 	<p class="initializing" v-if="fetching"><fa icon="spinner" pulse fixed-width/>{{ $t('loading') }}<mk-ellipsis/></p>
 	<div class="stream" v-if="!fetching && images.length > 0">
-		<div v-for="image in images" class="img"
-			:style="`background-image: url(${image.thumbnailUrl})`"
+		<div v-for="(image, i) in images" :key="i" class="img"
+			:style="`background-image: url(${thumbnail(image)})`"
 		></div>
 	</div>
 	<p class="empty" v-if="!fetching && images.length == 0">{{ $t('no-photos') }}</p>
@@ -14,6 +14,8 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../../i18n';
+import { getStaticImageUrl } from '../../../../common/scripts/get-static-image-url';
+
 export default Vue.extend({
 	i18n: i18n('desktop/views/pages/user/user.photos.vue'),
 	props: ['user'],
@@ -24,20 +26,34 @@ export default Vue.extend({
 		};
 	},
 	mounted() {
+		const image = [
+			'image/jpeg',
+			'image/png',
+			'image/gif'
+		];
+
 		this.$root.api('users/notes', {
 			userId: this.user.id,
-			withFiles: true,
+			fileType: image,
+			excludeNsfw: !this.$store.state.device.alwaysShowNsfw,
 			limit: 9,
 			untilDate: new Date().getTime() + 1000 * 86400 * 365
 		}).then(notes => {
-			notes.forEach(note => {
-				note.files.forEach(file => {
+			for (const note of notes) {
+				for (const file of note.files) {
 					if (this.images.length < 9) this.images.push(file);
-				});
-			});
+				}
+			}
 			this.fetching = false;
 		});
-	}
+	},
+	methods: {
+		thumbnail(image: any): string {
+			return this.$store.state.device.disableShowingAnimatedImages
+				? getStaticImageUrl(image.thumbnailUrl)
+				: image.thumbnailUrl;
+		},
+	},
 });
 </script>
 
@@ -82,7 +98,7 @@ export default Vue.extend({
 		margin 0
 		padding 16px
 		text-align center
-		color #aaa
+		color var(--text)
 
 		> i
 			margin-right 4px

@@ -37,7 +37,7 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import * as anime from 'animejs';
+import anime from 'animejs';
 import contains from '../../../common/scripts/contains';
 
 const minHeight = 40;
@@ -196,7 +196,7 @@ export default Vue.extend({
 				opacity: 0,
 				scale: 0.8,
 				duration: this.animation ? 300 : 0,
-				easing: [0.5, -0.5, 1, 0.5]
+				easing: 'cubicBezier(0.5, -0.5, 1, 0.5)'
 			});
 
 			setTimeout(() => {
@@ -234,12 +234,12 @@ export default Vue.extend({
 		top() {
 			let z = 0;
 
-			this.$root.os.windows.getAll().forEach(w => {
-				if (w == this) return;
+			const ws = Array.from(this.$root.os.windows.getAll()).filter(w => w != this);
+			for (const w of ws) {
 				const m = w.$refs.main;
 				const mz = Number(document.defaultView.getComputedStyle(m, null).zIndex);
 				if (mz > z) z = mz;
-			});
+			}
 
 			if (z > 0) {
 				(this.$refs.main as any).style.zIndex = z + 1;
@@ -627,6 +627,7 @@ export default Vue.extend({
 
 			> .content
 				height 100%
+				overflow auto
 
 	&:not([flexible])
 		> .main > .body > .content

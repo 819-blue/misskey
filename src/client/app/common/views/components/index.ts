@@ -1,5 +1,6 @@
 import Vue from 'vue';
 
+import userName from './user-name.vue';
 import followButton from './follow-button.vue';
 import error from './error.vue';
 import noteSkeleton from './note-skeleton.vue';
@@ -44,6 +45,8 @@ import uiInfo from './ui/info.vue';
 import formButton from './ui/form/button.vue';
 import formRadio from './ui/form/radio.vue';
 
+Vue.component('mfm', misskeyFlavoredMarkdown);
+Vue.component('mk-user-name', userName);
 Vue.component('mk-follow-button', followButton);
 Vue.component('mk-error', error);
 Vue.component('mk-note-skeleton', noteSkeleton);
@@ -61,7 +64,6 @@ Vue.component('mk-forkit', forkit);
 Vue.component('mk-acct', acct);
 Vue.component('mk-avatar', avatar);
 Vue.component('mk-nav', nav);
-Vue.component('misskey-flavored-markdown', misskeyFlavoredMarkdown);
 Vue.component('mk-poll', poll);
 Vue.component('mk-poll-editor', pollEditor);
 Vue.component('mk-reaction-icon', reactionIcon);

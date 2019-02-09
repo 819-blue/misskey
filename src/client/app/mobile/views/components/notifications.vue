@@ -7,7 +7,7 @@
 	</div>
 
 	<!-- トランジションを有効にするとなぜかメモリリークする -->
-	<component :is="!$store.state.device.reduceMotion ? 'transition-group' : 'div'" name="mk-notifications" class="transition notifications">
+	<component :is="!$store.state.device.reduceMotion ? 'transition-group' : 'div'" name="mk-notifications" class="transition notifications" tag="div">
 		<template v-for="(notification, i) in _notifications">
 			<mk-notification :notification="notification" :key="notification.id"/>
 			<p class="date" :key="notification.id + '_date'" v-if="i != notifications.length - 1 && notification._date != _notifications[i + 1]._date">
@@ -152,7 +152,7 @@ export default Vue.extend({
 	> .notifications
 
 		> .mk-notification:not(:last-child)
-			border-bottom solid 1px var(--faceDivider)
+			border-bottom solid var(--lineWidth) var(--faceDivider)
 
 		> .date
 			display block
@@ -162,7 +162,7 @@ export default Vue.extend({
 			font-size 0.8em
 			color var(--dateDividerFg)
 			background var(--dateDividerBg)
-			border-bottom solid 1px var(--faceDivider)
+			border-bottom solid var(--lineWidth) var(--faceDivider)
 
 			span
 				margin 0 16px
@@ -175,7 +175,7 @@ export default Vue.extend({
 		width 100%
 		padding 16px
 		color var(--text)
-		border-top solid 1px rgba(#000, 0.05)
+		border-top solid var(--lineWidth) rgba(#000, 0.05)
 
 		> [data-icon]
 			margin-right 4px
@@ -184,7 +184,7 @@ export default Vue.extend({
 		margin 0
 		padding 16px
 		text-align center
-		color #aaa
+		color var(--text)
 
 	> .placeholder
 		padding 16px

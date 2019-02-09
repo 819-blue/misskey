@@ -7,20 +7,22 @@
 >
 	<div class="content">
 		<div v-if="visibility == 'specified'" class="visibleUsers">
-			<span v-for="u in visibleUsers">{{ u | userName }}<a @click="removeVisibleUser(u)">[x]</a></span>
+			<span v-for="u in visibleUsers">
+				<mk-user-name :user="u"/><a @click="removeVisibleUser(u)">[x]</a>
+			</span>
 			<a @click="addVisibleUser">{{ $t('add-visible-user') }}</a>
 		</div>
 		<div class="hashtags" v-if="recentHashtags.length > 0 && $store.state.settings.suggestRecentHashtags">
 			<b>{{ $t('recent-tags') }}:</b>
 			<a v-for="tag in recentHashtags.slice(0, 5)" @click="addTag(tag)" :title="$t('click-to-tagging')">#{{ tag }}</a>
 		</div>
-		<div class="local-only" v-if="this.localOnly == true">{{ $t('local-only-message') }}</div>
-		<input v-show="useCw" v-model="cw" :placeholder="$t('annotations')">
+		<div class="local-only" v-if="localOnly == true">{{ $t('local-only-message') }}</div>
+		<input v-show="useCw" ref="cw" v-model="cw" :placeholder="$t('annotations')" v-autocomplete="{ model: 'cw' }">
 		<div class="textarea">
 			<textarea :class="{ with: (files.length != 0 || poll) }"
 				ref="text" v-model="text" :disabled="posting"
 				@keydown="onKeydown" @paste="onPaste" :placeholder="placeholder"
-				v-autocomplete="'text'"
+				v-autocomplete="{ model: 'text' }"
 			></textarea>
 			<button class="emoji" @click="emoji" ref="emoji">
 				<fa :icon="['far', 'laugh']"/>
@@ -34,7 +36,7 @@
 				</x-draggable>
 				<p class="remain">{{ 4 - files.length }}/4</p>
 			</div>
-			<mk-poll-editor v-if="poll" ref="poll" @destroyed="poll = false" @updated="saveDraft()"/>
+			<mk-poll-editor v-if="poll" ref="poll" @destroyed="poll = false" @updated="onPollUpdate()"/>
 		</div>
 	</div>
 	<mk-uploader ref="uploader" @uploaded="attachMedia" @change="onChangeUploadings"/>
@@ -49,12 +51,11 @@
 		<span v-if="visibility === 'home'"><fa icon="home"/></span>
 		<span v-if="visibility === 'followers'"><fa icon="unlock"/></span>
 		<span v-if="visibility === 'specified'"><fa icon="envelope"/></span>
-		<span v-if="visibility === 'private'"><fa icon="lock"/></span>
 	</button>
 	<p class="text-count" :class="{ over: trimmedLength(text) > maxNoteTextLength }">{{ maxNoteTextLength - trimmedLength(text) }}</p>
-	<button :class="{ posting }" class="submit" :disabled="!canPost" @click="post">
+	<ui-button primary :wait="posting" class="submit" :disabled="!canPost" @click="post">
 		{{ posting ? $t('posting') : submitText }}<mk-ellipsis v-if="posting"/>
-	</button>
+	</ui-button>
 	<input ref="file" type="file" multiple="multiple" tabindex="-1" @change="onChangeFile"/>
 	<div class="dropzone" v-if="draghover"></div>
 </div>
@@ -67,15 +68,16 @@ import insertTextAtCursor from 'insert-text-at-cursor';
 import * as XDraggable from 'vuedraggable';
 import getFace from '../../../common/scripts/get-face';
 import MkVisibilityChooser from '../../../common/views/components/visibility-chooser.vue';
-import parse from '../../../../../mfm/parse';
+import { parse } from '../../../../../mfm/parse';
 import { host } from '../../../config';
 import { erase, unique } from '../../../../../prelude/array';
 import { length } from 'stringz';
-import parseAcct from '../../../../../misc/acct/parse';
 import { toASCII } from 'punycode';
+import extractMentions from '../../../../../misc/extract-mentions';
 
 export default Vue.extend({
 	i18n: i18n('desktop/views/components/post-form.vue'),
+
 	components: {
 		XDraggable,
 		MkVisibilityChooser
@@ -87,6 +89,10 @@ export default Vue.extend({
 			required: false
 		},
 		renote: {
+			type: Object,
+			required: false
+		},
+		mention: {
 			type: Object,
 			required: false
 		},
@@ -108,6 +114,7 @@ export default Vue.extend({
 			files: [],
 			uploadings: [],
 			poll: false,
+			pollChoices: [],
 			useCw: false,
 			cw: null,
 			geo: null,
@@ -165,13 +172,19 @@ export default Vue.extend({
 		canPost(): boolean {
 			return !this.posting &&
 				(1 <= this.text.length || 1 <= this.files.length || this.poll || this.renote) &&
-				(length(this.text.trim()) <= this.maxNoteTextLength);
+				(length(this.text.trim()) <= this.maxNoteTextLength) &&
+				(!this.poll || this.pollChoices.length >= 2);
 		}
 	},
 
 	mounted() {
 		if (this.initialText) {
 			this.text = this.initialText;
+		}
+
+		if (this.mention) {
+			this.text = this.mention.host ? `@${this.mention.username}@${toASCII(this.mention.host)}` : `@${this.mention.username}`;
+			this.text += ' ';
 		}
 
 		if (this.reply && this.reply.user.host != null) {
@@ -181,38 +194,43 @@ export default Vue.extend({
 		if (this.reply && this.reply.text != null) {
 			const ast = parse(this.reply.text);
 
-			ast.filter(t => t.type == 'mention').forEach(x => {
+			for (const x of extractMentions(ast)) {
 				const mention = x.host ? `@${x.username}@${toASCII(x.host)}` : `@${x.username}`;
 
 				// 自分は除外
-				if (this.$store.state.i.username == x.username && x.host == null) return;
-				if (this.$store.state.i.username == x.username && x.host == host) return;
+				if (this.$store.state.i.username == x.username && x.host == null) continue;
+				if (this.$store.state.i.username == x.username && x.host == host) continue;
 
 				// 重複は除外
-				if (this.text.indexOf(`${mention} `) != -1) return;
+				if (this.text.indexOf(`${mention} `) != -1) continue;
 
 				this.text += `${mention} `;
-			});
+			}
 		}
 
 		// デフォルト公開範囲
 		this.applyVisibility(this.$store.state.settings.rememberNoteVisibility ? (this.$store.state.device.visibility || this.$store.state.settings.defaultNoteVisibility) : this.$store.state.settings.defaultNoteVisibility);
 
 		// 公開以外へのリプライ時は元の公開範囲を引き継ぐ
-		if (this.reply && ['home', 'followers', 'specified', 'private'].includes(this.reply.visibility)) {
+		if (this.reply && ['home', 'followers', 'specified'].includes(this.reply.visibility)) {
 			this.visibility = this.reply.visibility;
 		}
 
-		// ダイレクトへのリプライはリプライ先ユーザーを初期設定
-		if (this.reply && this.reply.visibility === 'specified') {
-			this.$root.api('users/show', {	userId: this.reply.userId }).then(user => {
+		if (this.reply) {
+			this.$root.api('users/show', { userId: this.reply.userId }).then(user => {
 				this.visibleUsers.push(user);
 			});
 		}
 
+		// keep cw when reply
+		if (this.$store.state.settings.keepCw && this.reply && this.reply.cw) {
+			this.useCw = true;
+			this.cw = this.reply.cw;
+		}
+
 		this.$nextTick(() => {
 			// 書きかけの投稿を復元
-			if (!this.instant) {
+			if (!this.instant && !this.mention) {
 				const draft = JSON.parse(localStorage.getItem('drafts') || '{}')[this.draftId];
 				if (draft) {
 					this.text = draft.data.text;
@@ -232,7 +250,7 @@ export default Vue.extend({
 	},
 
 	methods: {
-	  trimmedLength(text: string) {
+		trimmedLength(text: string) {
 			return length(text.trim());
 		},
 
@@ -258,7 +276,7 @@ export default Vue.extend({
 			this.$chooseDriveFile({
 				multiple: true
 			}).then(files => {
-				files.forEach(this.attachMedia);
+				for (const x of files) this.attachMedia(x);
 			});
 		},
 
@@ -273,7 +291,12 @@ export default Vue.extend({
 		},
 
 		onChangeFile() {
-			Array.from((this.$refs.file as any).files).forEach(this.upload);
+			for (const x of Array.from((this.$refs.file as any).files)) this.upload(x);
+		},
+
+		onPollUpdate() {
+			this.pollChoices = this.$refs.poll.get().choices;
+			this.saveDraft();
 		},
 
 		upload(file) {
@@ -296,11 +319,11 @@ export default Vue.extend({
 		},
 
 		onPaste(e) {
-			Array.from(e.clipboardData.items).forEach((item: any) => {
+			for (const item of Array.from(e.clipboardData.items)) {
 				if (item.kind == 'file') {
 					this.upload(item.getAsFile());
 				}
-			});
+			}
 		},
 
 		onDragover(e) {
@@ -327,7 +350,7 @@ export default Vue.extend({
 			// ファイルだったら
 			if (e.dataTransfer.files.length > 0) {
 				e.preventDefault();
-				Array.from(e.dataTransfer.files).forEach(this.upload);
+				for (const x of Array.from(e.dataTransfer.files)) this.upload(x);
 				return;
 			}
 
@@ -365,7 +388,8 @@ export default Vue.extend({
 
 		setVisibility() {
 			const w = this.$root.new(MkVisibilityChooser, {
-				source: this.$refs.visibilityButton
+				source: this.$refs.visibilityButton,
+				currentVisibility: this.visibility
 			});
 			w.$once('chosen', v => {
 				this.applyVisibility(v);
@@ -384,13 +408,12 @@ export default Vue.extend({
 		},
 
 		addVisibleUser() {
-			this.$input({
-				title: this.$t('enter-username')
-			}).then(acct => {
-				if (acct.startsWith('@')) acct = acct.substr(1);
-				this.$root.api('users/show', parseAcct(acct)).then(user => {
-					this.visibleUsers.push(user);
-				});
+			this.$root.dialog({
+				title: this.$t('enter-username'),
+				user: true
+			}).then(({ canceled, result: user }) => {
+				if (canceled) return;
+				this.visibleUsers.push(user);
 			});
 		},
 
@@ -676,62 +699,8 @@ export default Vue.extend({
 		position absolute
 		bottom 16px
 		right 16px
-		cursor pointer
-		padding 0
-		margin 0
 		width 110px
 		height 40px
-		font-size 1em
-		color var(--primaryForeground)
-		background var(--primary)
-		outline none
-		border none
-		border-radius 4px
-
-		&:not(:disabled)
-			font-weight bold
-
-		&:hover:not(:disabled)
-			background var(--primaryLighten5)
-
-		&:active:not(:disabled)
-			background var(--primaryDarken5)
-
-		&:focus
-			&:after
-				content ""
-				pointer-events none
-				position absolute
-				top -5px
-				right -5px
-				bottom -5px
-				left -5px
-				border 2px solid var(--primaryAlpha03)
-				border-radius 8px
-
-		&:disabled
-			opacity 0.7
-			cursor default
-
-		&.wait
-			background linear-gradient(
-				45deg,
-				var(--primaryDarken10) 25%,
-				var(--primary)              25%,
-				var(--primary)              50%,
-				var(--primaryDarken10) 50%,
-				var(--primaryDarken10) 75%,
-				var(--primary)              75%,
-				var(--primary)
-			)
-			background-size 32px 32px
-			animation stripe-bg 1.5s linear infinite
-			opacity 0.7
-			cursor wait
-
-			@keyframes stripe-bg
-				from {background-position: 0 0;}
-				to   {background-position: -64px 32px;}
 
 	> .text-count
 		pointer-events none

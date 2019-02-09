@@ -28,13 +28,14 @@ import MkTag from './views/pages/tag.vue';
 import MkReversi from './views/pages/games/reversi.vue';
 import MkShare from './views/pages/share.vue';
 import MkFollow from '../common/views/pages/follow.vue';
+import MkNotFound from '../common/views/pages/not-found.vue';
+import MkSettings from './views/pages/settings.vue';
 
 import Ctx from './views/components/context-menu.vue';
 import PostFormWindow from './views/components/post-form-window.vue';
 import RenoteFormWindow from './views/components/renote-form-window.vue';
 import MkChooseFileFromDriveWindow from './views/components/choose-file-from-drive-window.vue';
 import MkChooseFolderFromDriveWindow from './views/components/choose-folder-from-drive-window.vue';
-import InputDialog from './views/components/input-dialog.vue';
 import Notification from './views/components/ui-notification.vue';
 
 import { url } from '../config';
@@ -69,6 +70,7 @@ init(async (launch) => {
 				} else {
 					const vm = this.$root.new(PostFormWindow, {
 						reply: o.reply,
+						mention: o.mention,
 						animation: o.animation == null ? true : o.animation
 					});
 					if (o.cb) vm.$once('closed', o.cb);
@@ -113,22 +115,6 @@ init(async (launch) => {
 				});
 			},
 
-			$input(opts) {
-				return new Promise<string>((res, rej) => {
-					const o = opts || {};
-					const d = this.$root.new(InputDialog, {
-						title: o.title,
-						placeholder: o.placeholder,
-						default: o.default,
-						type: o.type || 'text',
-						allowEmpty: o.allowEmpty
-					});
-					d.$once('done', text => {
-						res(text);
-					});
-				});
-			},
-
 			$notify(message) {
 				this.$root.new(Notification, {
 					message
@@ -156,16 +142,18 @@ init(async (launch) => {
 			{ path: '/i/messaging/:user', component: MkMessagingRoom },
 			{ path: '/i/drive', component: MkDrive },
 			{ path: '/i/drive/folder/:folder', component: MkDrive },
+			{ path: '/i/settings', component: MkSettings },
 			{ path: '/selectdrive', component: MkSelectDrive },
 			{ path: '/search', component: MkSearch },
 			{ path: '/tags/:tag', name: 'tag', component: MkTag },
 			{ path: '/share', component: MkShare },
-			{ path: '/reversi/:game?', component: MkReversi },
+			{ path: '/games/reversi/:game?', component: MkReversi },
 			{ path: '/@:user', name: 'user', component: MkUser },
 			{ path: '/@:user/following', name: 'userFollowing', component: MkUserFollowingOrFollowers },
 			{ path: '/@:user/followers', name: 'userFollowers', component: MkUserFollowingOrFollowers },
 			{ path: '/notes/:note', name: 'note', component: MkNote },
-			{ path: '/authorize-follow', component: MkFollow }
+			{ path: '/authorize-follow', component: MkFollow },
+			{ path: '*', component: MkNotFound }
 		]
 	});
 

@@ -1,11 +1,14 @@
-import $ from 'cafy'; import ID, { transform } from '../../../../../misc/cafy-id';
+import $ from 'cafy';
+import ID, { transform } from '../../../../../misc/cafy-id';
 import Vote from '../../../../../models/poll-vote';
 import Note from '../../../../../models/note';
 import Watching from '../../../../../models/note-watching';
 import watch from '../../../../../services/note/watch';
-import { publishNoteStream } from '../../../../../stream';
-import notify from '../../../../../notify';
+import { publishNoteStream } from '../../../../../services/stream';
+import notify from '../../../../../services/create-notification';
 import define from '../../../define';
+import createNote from '../../../../../services/note/create';
+import User from '../../../../../models/user';
 
 export const meta = {
 	desc: {
@@ -102,16 +105,31 @@ export default define(meta, (ps, user) => new Promise(async (res, rej) => {
 			}
 		})
 		.then(watchers => {
-			watchers.forEach(watcher => {
+			for (const watcher of watchers) {
 				notify(watcher.userId, user._id, 'poll_vote', {
 					noteId: note._id,
 					choice: ps.choice
 				});
-			});
+			}
 		});
 
 	// この投稿をWatchする
 	if (user.settings.autoWatch !== false) {
 		watch(user._id, note);
+	}
+
+	// リモート投票の場合リプライ送信
+	if (note._user.host != null) {
+		const pollOwner = await User.findOne({
+			_id: note.userId
+		});
+
+		createNote(user, {
+			createdAt: new Date(),
+			text: ps.choice.toString(),
+			reply: note,
+			visibility: 'specified',
+			visibleUsers: [ pollOwner ],
+		});
 	}
 }));

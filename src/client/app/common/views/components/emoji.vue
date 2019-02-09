@@ -1,5 +1,5 @@
 <template>
-<img v-if="customEmoji" class="fvgwvorwhxigeolkkrcderjzcawqrscl custom" :src="url" :alt="alt" :title="alt"/>
+<img v-if="customEmoji" class="fvgwvorwhxigeolkkrcderjzcawqrscl custom" :class="{ normal: normal }" :src="url" :alt="alt" :title="alt"/>
 <img v-else-if="char && !useOsDefaultEmojis" class="fvgwvorwhxigeolkkrcderjzcawqrscl" :src="url" :alt="alt" :title="alt"/>
 <span v-else-if="char && useOsDefaultEmojis">{{ char }}</span>
 <span v-else>:{{ name }}:</span>
@@ -9,6 +9,7 @@
 import Vue from 'vue';
 // スクリプトサイズがデカい
 //import { lib } from 'emojilib';
+import { getStaticImageUrl } from '../../../common/scripts/get-static-image-url';
 
 export default Vue.extend({
 	props: {
@@ -19,6 +20,11 @@ export default Vue.extend({
 		emoji: {
 			type: String,
 			required: false
+		},
+		normal: {
+			type: Boolean,
+			required: false,
+			default: false
 		},
 		customEmojis: {
 			required: false,
@@ -49,7 +55,9 @@ export default Vue.extend({
 			const customEmoji = this.customEmojis.find(x => x.name == this.name);
 			if (customEmoji) {
 				this.customEmoji = customEmoji;
-				this.url = customEmoji.url;
+				this.url = this.$store.state.device.disableShowingAnimatedImages
+					? getStaticImageUrl(customEmoji.url)
+					: customEmoji.url;
 			} else {
 				//const emoji = lib[this.name];
 				//if (emoji) {
@@ -61,8 +69,9 @@ export default Vue.extend({
 		}
 
 		if (this.char) {
-			let codes = [...this.char].map(x => x.codePointAt(0).toString(16));
+			let codes = Array.from(this.char).map(x => x.codePointAt(0).toString(16));
 			if (!codes.includes('200d')) codes = codes.filter(x => x != 'fe0f');
+			codes = codes.filter(x => x && x.length);
 
 			this.url = `https://twemoji.maxcdn.com/2/svg/${codes.join('-')}.svg`;
 		}
@@ -82,5 +91,12 @@ export default Vue.extend({
 
 		&:hover
 			transform scale(1.2)
+
+		&.normal
+			height 1.25em
+			vertical-align -0.25em
+
+			&:hover
+				transform none
 
 </style>

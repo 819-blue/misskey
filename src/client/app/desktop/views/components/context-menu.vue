@@ -6,7 +6,7 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import * as anime from 'animejs';
+import anime from 'animejs';
 import contains from '../../../common/scripts/contains';
 import XMenu from './context-menu.menu.vue';
 
@@ -34,9 +34,9 @@ export default Vue.extend({
 			this.$el.style.left = x + 'px';
 			this.$el.style.top = y + 'px';
 
-			Array.from(document.querySelectorAll('body *')).forEach(el => {
+			for (const el of Array.from(document.querySelectorAll('body *'))) {
 				el.addEventListener('mousedown', this.onMousedown);
-			});
+			}
 
 			this.$el.style.display = 'block';
 
@@ -59,9 +59,9 @@ export default Vue.extend({
 			this.close();
 		},
 		close() {
-			Array.from(document.querySelectorAll('body *')).forEach(el => {
+			for (const el of Array.from(document.querySelectorAll('body *'))) {
 				el.removeEventListener('mousedown', this.onMousedown);
-			});
+			}
 
 			this.$emit('closed');
 			this.destroyDom();

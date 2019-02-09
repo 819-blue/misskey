@@ -5,12 +5,11 @@
 
 		<p :class="$style.fetching" v-if="fetching"><fa icon="spinner" pulse fixed-width/>{{ $t('@.loading') }}<mk-ellipsis/></p>
 		<div :class="$style.stream" v-if="!fetching && images.length > 0">
-			<div v-for="image in images"
+			<div v-for="(image, i) in images" :key="i"
 				:class="$style.img"
-				:style="`background-image: url(${image.thumbnailUrl || image.url})`"
+				:style="`background-image: url(${thumbnail(image)})`"
 				draggable="true"
 				@dragstart="onDragstart(image, $event)"
-				@dragend="onDragend"
 			></div>
 		</div>
 		<p :class="$style.empty" v-if="!fetching && images.length == 0">{{ $t('no-photos') }}</p>
@@ -21,6 +20,7 @@
 <script lang="ts">
 import define from '../../../common/define-widget';
 import i18n from '../../../i18n';
+import { getStaticImageUrl } from '../../scripts/get-static-image-url';
 
 export default define({
 	name: 'photo-stream',
@@ -79,8 +79,10 @@ export default define({
 			e.dataTransfer.setData('mk_drive_file', JSON.stringify(file));
 		},
 
-		onDragend(e) {
-			this.browser.isDragSource = false;
+		thumbnail(image: any): string {
+			return this.$store.state.device.disableShowingAnimatedImages
+				? getStaticImageUrl(image.thumbnailUrl)
+				: image.thumbnailUrl;
 		},
 	}
 });
@@ -115,7 +117,7 @@ export default define({
 	margin 0
 	padding 16px
 	text-align center
-	color #aaa
+	color var(--text)
 
 	> [data-icon]
 		margin-right 4px

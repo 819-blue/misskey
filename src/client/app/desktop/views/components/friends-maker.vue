@@ -5,7 +5,9 @@
 		<div class="user" v-for="user in users" :key="user.id">
 			<mk-avatar class="avatar" :user="user" target="_blank"/>
 			<div class="body">
-				<router-link class="name" :to="user | userPage" v-user-preview="user.id">{{ user | userName }}</router-link>
+				<router-link class="name" :to="user | userPage" v-user-preview="user.id">
+					<mk-user-name :user="user"/>
+				</router-link>
 				<p class="username">@{{ user | acct }}</p>
 			</div>
 		</div>
@@ -118,13 +120,13 @@ export default Vue.extend({
 		margin 0
 		padding 16px
 		text-align center
-		color #aaa
+		color var(--text)
 
 	> .fetching
 		margin 0
 		padding 16px
 		text-align center
-		color #aaa
+		color var(--text)
 
 		> [data-icon]
 			margin-right 4px

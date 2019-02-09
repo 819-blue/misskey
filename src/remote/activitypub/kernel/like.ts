@@ -18,13 +18,11 @@ export default async (actor: IRemoteUser, activity: ILike) => {
 		throw new Error();
 	}
 
-	let reaction = 'pudding';
+	let reaction = 'like';
 
 	// 他のMisskeyインスタンスからのリアクション
-	if (activity._misskey_reaction) {
-		if (validateReaction.ok(activity._misskey_reaction)) {
-			reaction = activity._misskey_reaction;
-		}
+	if (activity._misskey_reaction && validateReaction.ok(activity._misskey_reaction)) {
+		reaction = activity._misskey_reaction;
 	}
 
 	await create(actor, note, reaction);

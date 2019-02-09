@@ -29,15 +29,15 @@ Please install and setup these softwares:
 * [Redis](https://redis.io/)
   * Redis is optional, but we strongly recommended to install it
 * [Elasticsearch](https://www.elastic.co/) - required to enable the search feature
+* [FFmpeg](https://www.ffmpeg.org/)
 
 *3.* Setup MongoDB
 ----------------------------------------------------------------
 As root:
 1. `mongo` Go to the mongo shell
 2. `use misskey` Use the misskey database
-3. `db.users.save( {dummy:"dummy"} )` Write dummy data to initialize the db.
-4. `db.createUser( { user: "misskey", pwd: "<password>", roles: [ { role: "readWrite", db: "misskey" } ] } )` Create the misskey user.
-5. `exit` You're done !
+3. `db.createUser( { user: "misskey", pwd: "<password>", roles: [ { role: "readWrite", db: "misskey" } ] } )` Create the misskey user.
+4. `exit` You're done!
 
 *4.* Install Misskey
 ----------------------------------------------------------------
@@ -47,16 +47,6 @@ As root:
 4. `git checkout $(git tag -l | grep -v 'rc[0-9]*$' | sort -V | tail -n 1)` Checkout to the [latest release](https://github.com/syuilo/misskey/releases/latest)
 5. `npm install` Install misskey dependencies.
 
-*(optional)* Generate VAPID keys
-----------------------------------------------------------------
-If you want to enable ServiceWorker, you need to generate VAPID keys:
-Unless you have set your global node_modules location elsewhere, you need to run this as root.
-
-``` shell
-npm install web-push -g
-web-push generate-vapid-keys
-```
-
 *5.* Configure Misskey
 ----------------------------------------------------------------
 1. `cp .config/example.yml .config/default.yml` Copy the `.config/example.yml` and rename it to `default.yml`.
@@ -64,6 +54,11 @@ web-push generate-vapid-keys
 
 *6.* Build Misskey
 ----------------------------------------------------------------
+
+Before build, you need to set `NODE_ENV` to `production`. like this:
+* Linux: `export NODE_ENV=production`
+* Windows (PowerShell): `$env:NODE_ENV="production"`
+* Windows (CMD): `set NODE_ENV=production`
 
 Build misskey with the following:
 
@@ -120,6 +115,8 @@ You can check if the service is running with `systemctl status misskey`.
 3. `npm install`
 4. `npm run build`
 5. Check [ChangeLog](../CHANGELOG.md) for migration information
+6. Restart your Misskey process to apply changes
+7. Enjoy
 
 ----------------------------------------------------------------
 

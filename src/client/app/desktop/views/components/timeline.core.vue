@@ -149,7 +149,9 @@ export default Vue.extend({
 				} else {
 					this.existMore = false;
 				}
-				notes.forEach(n => (this.$refs.timeline as any).append(n));
+				for (const n of notes) {
+					(this.$refs.timeline as any).append(n);
+				}
 				this.moreFetching = false;
 			});
 
@@ -171,7 +173,7 @@ export default Vue.extend({
 <style lang="stylus" scoped>
 .mk-timeline-core
 	> .mk-friends-maker
-		border-bottom solid 1px #eee
+		border-bottom solid var(--lineWidth) #eee
 
 </style>
 

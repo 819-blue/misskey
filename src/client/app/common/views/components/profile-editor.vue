@@ -24,13 +24,20 @@
 			</ui-input>
 
 			<ui-input v-model="birthday" type="date">
-				<span>{{ $t('birthday') }}</span>
+				<span slot="title">{{ $t('birthday') }}</span>
 				<span slot="prefix"><fa icon="birthday-cake"/></span>
 			</ui-input>
 
 			<ui-textarea v-model="description" :max="500">
 				<span>{{ $t('description') }}</span>
+				<span slot="desc">{{ $t('you-can-include-hashtags') }}</span>
 			</ui-textarea>
+
+			<ui-select v-model="lang">
+				<span slot="label">{{ $t('language') }}</span>
+				<span slot="icon"><fa icon="language"/></span>
+				<option v-for="lang in unique(Object.values(langmap).map(x => x.nativeName)).map(name => Object.keys(langmap).find(k => langmap[k].nativeName == name))" :value="lang" :key="lang">{{ langmap[lang].nativeName }}</option>
+			</ui-select>
 
 			<ui-input type="file" @change="onAvatarChange">
 				<span>{{ $t('avatar') }}</span>
@@ -63,7 +70,35 @@
 
 		<div>
 			<ui-switch v-model="isLocked" @change="save(false)">{{ $t('is-locked') }}</ui-switch>
-			<ui-switch v-model="carefulBot" @change="save(false)">{{ $t('careful-bot') }}</ui-switch>
+			<ui-switch v-model="carefulBot" :disabled="isLocked" @change="save(false)">{{ $t('careful-bot') }}</ui-switch>
+			<ui-switch v-model="autoAcceptFollowed" :disabled="!isLocked && !carefulBot" @change="save(false)">{{ $t('auto-accept-followed') }}</ui-switch>
+		</div>
+	</section>
+
+	<section v-if="enableEmail">
+		<header>{{ $t('email') }}</header>
+
+		<div>
+			<template v-if="$store.state.i.email != null">
+				<ui-info v-if="$store.state.i.emailVerified">{{ $t('email-verified') }}</ui-info>
+				<ui-info v-else warn>{{ $t('email-not-verified') }}</ui-info>
+			</template>
+			<ui-input v-model="email" type="email"><span>{{ $t('email-address') }}</span></ui-input>
+			<ui-button @click="updateEmail()">{{ $t('save') }}</ui-button>
+		</div>
+	</section>
+
+	<section>
+		<header>{{ $t('export') }}</header>
+
+		<div>
+			<ui-select v-model="exportTarget">
+				<option value="notes">{{ $t('export-targets.all-notes') }}</option>
+				<option value="following">{{ $t('export-targets.following-list') }}</option>
+				<option value="mute">{{ $t('export-targets.mute-list') }}</option>
+				<option value="blocking">{{ $t('export-targets.blocking-list') }}</option>
+			</ui-select>
+			<ui-button @click="doExport()"><fa :icon="faDownload"/> {{ $t('export') }}</ui-button>
 		</div>
 	</section>
 </ui-card>
@@ -74,16 +109,25 @@ import Vue from 'vue';
 import i18n from '../../../i18n';
 import { apiUrl, host } from '../../../config';
 import { toUnicode } from 'punycode';
+import langmap from 'langmap';
+import { unique } from '../../../../../prelude/array';
+import { faDownload } from '@fortawesome/free-solid-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('common/views/components/profile-editor.vue'),
+
 	data() {
 		return {
+			unique,
+			langmap,
 			host: toUnicode(host),
+			enableEmail: false,
+			email: null,
 			name: null,
 			username: null,
 			location: null,
 			description: null,
+			lang: null,
 			birthday: null,
 			avatarId: null,
 			bannerId: null,
@@ -91,9 +135,12 @@ export default Vue.extend({
 			isBot: false,
 			isLocked: false,
 			carefulBot: false,
+			autoAcceptFollowed: false,
 			saving: false,
 			avatarUploading: false,
-			bannerUploading: false
+			bannerUploading: false,
+			exportTarget: 'notes',
+			faDownload
 		};
 	},
 
@@ -113,10 +160,15 @@ export default Vue.extend({
 	},
 
 	created() {
-		this.name = this.$store.state.i.name || '';
+		this.$root.getMeta().then(meta => {
+			this.enableEmail = meta.enableEmail;
+		});
+		this.email = this.$store.state.i.email;
+		this.name = this.$store.state.i.name;
 		this.username = this.$store.state.i.username;
 		this.location = this.$store.state.i.profile.location;
 		this.description = this.$store.state.i.description;
+		this.lang = this.$store.state.i.lang;
 		this.birthday = this.$store.state.i.profile.birthday;
 		this.avatarId = this.$store.state.i.avatarId;
 		this.bannerId = this.$store.state.i.bannerId;
@@ -124,6 +176,7 @@ export default Vue.extend({
 		this.isBot = this.$store.state.i.isBot;
 		this.isLocked = this.$store.state.i.isLocked;
 		this.carefulBot = this.$store.state.i.carefulBot;
+		this.autoAcceptFollowed = this.$store.state.i.autoAcceptFollowed;
 	},
 
 	methods: {
@@ -178,13 +231,15 @@ export default Vue.extend({
 				name: this.name || null,
 				location: this.location || null,
 				description: this.description || null,
+				lang: this.lang,
 				birthday: this.birthday || null,
-				avatarId: this.avatarId,
-				bannerId: this.bannerId,
+				avatarId: this.avatarId || undefined,
+				bannerId: this.bannerId || undefined,
 				isCat: !!this.isCat,
 				isBot: !!this.isBot,
 				isLocked: !!this.isLocked,
-				carefulBot: !!this.carefulBot
+				carefulBot: !!this.carefulBot,
+				autoAcceptFollowed: !!this.autoAcceptFollowed
 			}).then(i => {
 				this.saving = false;
 				this.$store.state.i.avatarId = i.avatarId;
@@ -193,11 +248,40 @@ export default Vue.extend({
 				this.$store.state.i.bannerUrl = i.bannerUrl;
 
 				if (notify) {
-					this.$root.alert({
+					this.$root.dialog({
 						type: 'success',
 						text: this.$t('saved')
 					});
 				}
+			});
+		},
+
+		updateEmail() {
+			this.$root.dialog({
+				title: this.$t('@.enter-password'),
+				input: {
+					type: 'password'
+				}
+			}).then(({ canceled, result: password }) => {
+				if (canceled) return;
+				this.$root.api('i/update_email', {
+					password: password,
+					email: this.email == '' ? null : this.email
+				});
+			});
+		},
+
+		doExport() {
+			this.$root.api(
+				this.exportTarget == 'notes' ? 'i/export-notes' :
+				this.exportTarget == 'following' ? 'i/export-following' :
+				this.exportTarget == 'mute' ? 'i/export-mute' :
+				this.exportTarget == 'blocking' ? 'i/export-blocking' :
+				null, {});
+
+			this.$root.dialog({
+				type: 'info',
+				text: this.$t('export-requested')
 			});
 		}
 	}

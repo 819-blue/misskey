@@ -5,11 +5,12 @@
 		<div>
 			<header>
 				<mk-reaction-icon :reaction="notification.reaction"/>
-				<router-link :to="notification.user | userPage">{{ notification.user | userName }}</router-link>
+				<router-link :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
 				<mk-time :time="notification.createdAt"/>
 			</header>
-			<router-link class="note-ref" :to="notification.note | notePage">
-				<fa icon="quote-left"/>{{ getNoteSummary(notification.note) }}
+			<router-link class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note)">
+				<fa icon="quote-left"/>
+					<mfm :text="getNoteSummary(notification.note)" :should-break="false" :plain-text="true" :custom-emojis="notification.note.emojis"/>
 				<fa icon="quote-right"/>
 			</router-link>
 		</div>
@@ -20,11 +21,13 @@
 		<div>
 			<header>
 				<fa icon="retweet"/>
-				<router-link :to="notification.user | userPage">{{ notification.user | userName }}</router-link>
+				<router-link :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
 				<mk-time :time="notification.createdAt"/>
 			</header>
-			<router-link class="note-ref" :to="notification.note | notePage">
-				<fa icon="quote-left"/>{{ getNoteSummary(notification.note.renote) }}<fa icon="quote-right"/>
+			<router-link class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note.renote)">
+				<fa icon="quote-left"/>
+					<mfm :text="getNoteSummary(notification.note.renote)" :should-break="false" :plain-text="true" :custom-emojis="notification.note.renote.emojis"/>
+				<fa icon="quote-right"/>
 			</router-link>
 		</div>
 	</div>
@@ -34,7 +37,7 @@
 		<div>
 			<header>
 				<fa icon="user-plus"/>
-				<router-link :to="notification.user | userPage">{{ notification.user | userName }}</router-link>
+				<router-link :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
 				<mk-time :time="notification.createdAt"/>
 			</header>
 		</div>
@@ -45,7 +48,7 @@
 		<div>
 			<header>
 				<fa icon="user-clock"/>
-				<router-link :to="notification.user | userPage">{{ notification.user | userName }}</router-link>
+				<router-link :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
 				<mk-time :time="notification.createdAt"/>
 			</header>
 		</div>
@@ -56,11 +59,13 @@
 		<div>
 			<header>
 				<fa icon="chart-pie"/>
-				<router-link :to="notification.user | userPage">{{ notification.user | userName }}</router-link>
+				<router-link :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
 				<mk-time :time="notification.createdAt"/>
 			</header>
-			<router-link class="note-ref" :to="notification.note | notePage">
-				<fa icon="quote-left"/>{{ getNoteSummary(notification.note) }}<fa icon="quote-right"/>
+			<router-link class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note)">
+				<fa icon="quote-left"/>
+					<mfm :text="getNoteSummary(notification.note)" :should-break="false" :plain-text="true" :custom-emojis="notification.note.emojis"/>
+				<fa icon="quote-right"/>
 			</router-link>
 		</div>
 	</div>
@@ -162,6 +167,11 @@ export default Vue.extend({
 
 			> .note-ref
 				color var(--noteText)
+				display inline-block
+				width: 100%
+				overflow hidden
+				white-space nowrap
+				text-overflow ellipsis
 
 				[data-icon]
 					font-size 1em

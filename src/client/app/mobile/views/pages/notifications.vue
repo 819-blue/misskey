@@ -23,12 +23,12 @@ export default Vue.extend({
 	},
 	methods: {
 		fn() {
-			this.$root.alert({
+			this.$root.dialog({
 				type: 'warning',
 				text: this.$t('read-all'),
 				showCancelButton: true
-			}).then(res => {
-				if (!res) return;
+			}).then(({ canceled }) => {
+				if (canceled) return;
 
 				this.$root.api('notifications/mark_all_as_read');
 			});
@@ -41,8 +41,6 @@ export default Vue.extend({
 </script>
 
 <style lang="stylus" scoped>
-
-
 main
 	width 100%
 	max-width 680px

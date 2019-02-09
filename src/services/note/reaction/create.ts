@@ -1,14 +1,14 @@
 import { IUser, isLocalUser, isRemoteUser } from '../../../models/user';
 import Note, { INote } from '../../../models/note';
 import NoteReaction from '../../../models/note-reaction';
-import { publishNoteStream } from '../../../stream';
-import notify from '../../../notify';
+import { publishNoteStream } from '../../stream';
+import notify from '../../create-notification';
 import NoteWatching from '../../../models/note-watching';
 import watch from '../watch';
 import renderLike from '../../../remote/activitypub/renderer/like';
 import { deliver } from '../../../queue';
-import pack from '../../../remote/activitypub/renderer';
-import perUserReactionsChart from '../../../chart/per-user-reactions';
+import { renderActivity } from '../../../remote/activitypub/renderer';
+import perUserReactionsChart from '../../../services/chart/per-user-reactions';
 
 export default async (user: IUser, note: INote, reaction: string) => new Promise(async (res, rej) => {
 	// Myself
@@ -30,7 +30,6 @@ export default async (user: IUser, note: INote, reaction: string) => new Promise
 			return rej('already reacted');
 		}
 
-		console.error(e);
 		return rej('something happened');
 	}
 
@@ -70,12 +69,12 @@ export default async (user: IUser, note: INote, reaction: string) => new Promise
 			}
 		})
 		.then(watchers => {
-			watchers.forEach(watcher => {
+			for (const watcher of watchers) {
 				notify(watcher.userId, user._id, 'reaction', {
 					noteId: note._id,
 					reaction: reaction
 				});
-			});
+			}
 		});
 
 	// ユーザーがローカルユーザーかつ自動ウォッチ設定がオンならばこの投稿をWatchする
@@ -86,7 +85,7 @@ export default async (user: IUser, note: INote, reaction: string) => new Promise
 	//#region 配信
 	// リアクターがローカルユーザーかつリアクション対象がリモートユーザーの投稿なら配送
 	if (isLocalUser(user) && isRemoteUser(note._user)) {
-		const content = pack(renderLike(user, note, reaction));
+		const content = renderActivity(renderLike(user, note, reaction));
 		deliver(user, content, note._user.inbox);
 	}
 	//#endregion

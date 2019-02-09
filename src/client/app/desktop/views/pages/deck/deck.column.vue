@@ -167,11 +167,14 @@ export default Vue.extend({
 				icon: 'pencil-alt',
 				text: this.$t('rename'),
 				action: () => {
-					this.$input({
+					this.$root.dialog({
 						title: this.$t('rename'),
-						default: this.name,
-						allowEmpty: false
-					}).then(name => {
+						input: {
+							default: this.name,
+							allowEmpty: false
+						}
+					}).then(({ canceled, result: name }) => {
+						if (canceled) return;
 						this.$store.dispatch('settings/renameDeckColumn', { id: this.column.id, name });
 					});
 				}
@@ -221,7 +224,9 @@ export default Vue.extend({
 
 			if (this.menu) {
 				items.unshift(null);
-				this.menu.reverse().forEach(i => items.unshift(i));
+				for (const i of this.menu.reverse()) {
+					items.unshift(i);
+				}
 			}
 
 			return items;
@@ -235,7 +240,6 @@ export default Vue.extend({
 		showMenu() {
 			this.$root.new(Menu, {
 				source: this.$refs.menu,
-				compact: false,
 				items: this.getMenu()
 			});
 		},
@@ -315,8 +319,6 @@ export default Vue.extend({
 .dnpfarvgbnfmyzbdquhhzyxcmstpdqzs
 	$header-height = 42px
 
-	width 330px
-	min-width 330px
 	height 100%
 	background var(--face)
 	border-radius var(--round)
@@ -351,6 +353,7 @@ export default Vue.extend({
 	&:not(.isStacked).narrow
 		width 285px
 		min-width 285px
+		flex-grow 0 !important
 
 	&.naked
 		background var(--deckAcrylicColumnBg)
@@ -370,7 +373,7 @@ export default Vue.extend({
 		font-size 14px
 		color var(--faceHeaderText)
 		background var(--faceHeader)
-		box-shadow 0 1px rgba(#000, 0.15)
+		box-shadow 0 var(--lineWidth) rgba(#000, 0.15)
 		cursor pointer
 
 		&, *

@@ -1,4 +1,5 @@
-import $ from 'cafy'; import ID, { transform } from '../../../misc/cafy-id';
+import $ from 'cafy';
+import ID, { transform } from '../../../misc/cafy-id';
 import Note, { packMany } from '../../../models/note';
 import define from '../define';
 
@@ -78,6 +79,7 @@ export default define(meta, (ps) => new Promise(async (res, rej) => {
 		_id: -1
 	};
 	const query = {
+		deletedAt: null,
 		visibility: 'public'
 	} as any;
 	if (ps.sinceId) {
@@ -105,9 +107,7 @@ export default define(meta, (ps) => new Promise(async (res, rej) => {
 
 	const withFiles = ps.withFiles != undefined ? ps.withFiles : ps.media;
 
-	if (withFiles) {
-		query.fileIds = withFiles ? { $exists: true, $ne: null } : [];
-	}
+	if (withFiles) query.fileIds = { $exists: true, $ne: null };
 
 	if (ps.poll != undefined) {
 		query.poll = ps.poll ? { $exists: true, $ne: null } : null;

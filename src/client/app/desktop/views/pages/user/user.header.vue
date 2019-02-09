@@ -4,7 +4,9 @@
 		<div class="banner" ref="banner" :style="style" @click="onBannerClick"></div>
 		<div class="fade"></div>
 		<div class="title">
-			<p class="name">{{ user | userName }}</p>
+			<p class="name">
+				<mk-user-name :user="user"/>
+			</p>
 			<div>
 				<span class="username"><mk-acct :user="user" :detail="true" /></span>
 				<span v-if="user.isBot" :title="$t('title')"><fa icon="robot"/></span>
@@ -14,7 +16,17 @@
 	<mk-avatar class="avatar" :user="user" :disable-preview="true"/>
 	<div class="body">
 		<div class="description">
-			<misskey-flavored-markdown v-if="user.description" :text="user.description" :author="user" :i="$store.state.i"/>
+			<mfm v-if="user.description" :text="user.description" :author="user" :i="$store.state.i" :custom-emojis="user.emojis"/>
+		</div>
+		<div class="fields" v-if="user.fields">
+			<dl class="field" v-for="(field, i) in user.fields" :key="i">
+				<dt class="name">
+					<mfm :text="field.name" :should-break="false" :plain-text="true" :custom-emojis="user.emojis"/>
+				</dt>
+				<dd class="value">
+					<mfm :text="field.value" :author="user" :i="$store.state.i" :custom-emojis="user.emojis"/>
+				</dd>
+			</dl>
 		</div>
 		<div class="info">
 			<span class="location" v-if="user.host === null && user.profile.location"><fa icon="map-marker"/> {{ user.profile.location }}</span>
@@ -65,6 +77,9 @@ export default Vue.extend({
 		}
 	},
 	methods: {
+		mention() {
+			this.$post({ mention: this.user });
+		},
 		onScroll() {
 			const banner = this.$refs.banner as any;
 
@@ -171,6 +186,34 @@ export default Vue.extend({
 	> .body
 		padding 16px 16px 16px 154px
 		color var(--text)
+
+		> .fields
+			margin-top 16px
+
+			> .field
+				display flex
+				padding 0
+				margin 0
+				align-items center
+
+				> .name
+					border-right solid 1px var(--faceDivider)
+					padding 4px
+					margin 4px
+					width 30%
+					overflow hidden
+					white-space nowrap
+					text-overflow ellipsis
+					font-weight bold
+					text-align center
+
+				> .value
+					padding 4px
+					margin 4px
+					width 70%
+					overflow hidden
+					white-space nowrap
+					text-overflow ellipsis
 
 		> .info
 			margin-top 16px

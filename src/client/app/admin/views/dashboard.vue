@@ -124,15 +124,15 @@ export default Vue.extend({
 			this.meta = meta;
 		});
 
-		this.$root.api('instances', {
+		this.$root.api('federation/instances', {
 			sort: '+notes'
 		}).then(instances => {
-			instances.forEach(i => {
+			for (const i of instances) {
 				i.bg = randomColor({
 					seed: i.host,
 					luminosity: 'dark'
 				});
-			});
+			}
 			this.instances = instances;
 		});
 	},
@@ -148,7 +148,7 @@ export default Vue.extend({
 		},
 
 		updateStats() {
-			this.$root.api('stats', {}, false, true).then(stats => {
+			this.$root.api('stats', {}, true).then(stats => {
 				this.stats = stats;
 			});
 		}
@@ -161,7 +161,7 @@ export default Vue.extend({
 	padding 16px
 
 	@media (min-width 500px)
-		padding 32px
+		padding 16px
 
 	> header
 		display flex

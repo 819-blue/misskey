@@ -8,18 +8,20 @@ WORKDIR /misskey
 
 FROM base AS builder
 
+RUN unlink /usr/bin/free
 RUN apk add --no-cache \
-    gcc \
-    g++ \
-    libc-dev \
-    python \
     autoconf \
     automake \
     file \
+    g++ \
+    gcc \
+    libc-dev \
+    libtool \
     make \
     nasm \
     pkgconfig \
-    libtool \
+    procps \
+    python \
     zlib-dev
 RUN npm i -g node-gyp
 
@@ -33,7 +35,9 @@ RUN node-gyp configure \
 
 FROM base AS runner
 
-RUN apk add --no-cache tini
+RUN apk add --no-cache \
+    ffmpeg \
+    tini
 ENTRYPOINT ["/sbin/tini", "--"]
 
 COPY --from=builder /misskey/node_modules ./node_modules
