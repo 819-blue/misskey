@@ -1,7 +1,7 @@
 import * as mongo from 'mongodb';
 import * as deepcopy from 'deepcopy';
 import rap from '@prezzemolo/rap';
-import db from '../db/mongodb';
+import db, { dbLogger } from '../db/mongodb';
 import isObjectId from '../misc/is-objectid';
 import { packMany as packNoteMany } from './note';
 import Following from './following';
@@ -17,6 +17,7 @@ const User = db.get<IUser>('users');
 
 User.createIndex('username');
 User.createIndex('usernameLower');
+User.createIndex('host');
 User.createIndex(['username', 'host'], { unique: true });
 User.createIndex(['usernameLower', 'host'], { unique: true });
 User.createIndex('token', { sparse: true, unique: true });
@@ -286,7 +287,7 @@ export const pack = (
 
 	// (データベースの欠損などで)ユーザーがデータベース上に見つからなかったとき
 	if (_user == null) {
-		console.warn(`user not found on database: ${user}`);
+		dbLogger.warn(`user not found on database: ${user}`);
 		return resolve(null);
 	}
 

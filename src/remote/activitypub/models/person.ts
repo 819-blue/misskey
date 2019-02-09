@@ -1,6 +1,5 @@
 import * as mongo from 'mongodb';
 import { toUnicode } from 'punycode';
-import * as debug from 'debug';
 
 import config from '../../../config';
 import User, { validateUsername, isValidName, IUser, IRemoteUser, isRemoteUser } from '../../../models/user';
@@ -10,18 +9,20 @@ import { isCollectionOrOrderedCollection, isCollection, IPerson } from '../type'
 import { IDriveFile } from '../../../models/drive-file';
 import Meta from '../../../models/meta';
 import { fromHtml } from '../../../mfm/fromHtml';
-import usersChart from '../../../chart/users';
+import usersChart from '../../../services/chart/users';
+import instanceChart from '../../../services/chart/instance';
 import { URL } from 'url';
 import { resolveNote, extractEmojis } from './note';
-import registerInstance from '../../../services/register-instance';
+import { registerOrFetchInstanceDoc } from '../../../services/register-or-fetch-instance-doc';
 import Instance from '../../../models/instance';
 import getDriveFileUrl from '../../../misc/get-drive-file-url';
 import { IEmoji } from '../../../models/emoji';
 import { ITag, extractHashtags } from './tag';
 import Following from '../../../models/following';
 import { IIdentifier } from './identifier';
+import { apLogger } from '../logger';
 
-const log = debug('misskey:activitypub');
+const logger = apLogger;
 
 /**
  * Validate Person object
@@ -119,7 +120,7 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 
 	const person: IPerson = object;
 
-	log(`Creating the Person: ${person.id}`);
+	logger.info(`Creating the Person: ${person.id}`);
 
 	const [followersCount = 0, followingCount = 0, notesCount = 0] = await Promise.all([
 		resolver.resolve(person.followers).then(
@@ -183,20 +184,19 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 			throw new Error('already registered');
 		}
 
-		console.error(e);
+		logger.error(e);
 		throw e;
 	}
 
 	// Register host
-	registerInstance(host).then(i => {
+	registerOrFetchInstanceDoc(host).then(i => {
 		Instance.update({ _id: i._id }, {
 			$inc: {
 				usersCount: 1
 			}
 		});
 
-		// TODO
-		//perInstanceChart.newUser();
+		instanceChart.newUser(i.host);
 	});
 
 	//#region Increment users count
@@ -247,7 +247,7 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 
 	//#region カスタム絵文字取得
 	const emojis = await extractEmojis(person.tag, host).catch(e => {
-		console.log(`extractEmojis: ${e}`);
+		logger.info(`extractEmojis: ${e}`);
 		return [] as IEmoji[];
 	});
 
@@ -260,7 +260,7 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 	});
 	//#endregion
 
-	await updateFeatured(user._id).catch(err => console.log(err));
+	await updateFeatured(user._id).catch(err => logger.error(err));
 
 	return user;
 }
@@ -300,7 +300,7 @@ export async function updatePerson(uri: string, resolver?: Resolver, hint?: obje
 
 	const person: IPerson = object;
 
-	log(`Updating the Person: ${person.id}`);
+	logger.info(`Updating the Person: ${person.id}`);
 
 	const [followersCount = 0, followingCount = 0, notesCount = 0] = await Promise.all([
 		resolver.resolve(person.followers).then(
@@ -329,7 +329,7 @@ export async function updatePerson(uri: string, resolver?: Resolver, hint?: obje
 
 	// カスタム絵文字取得
 	const emojis = await extractEmojis(person.tag, exist.host).catch(e => {
-		console.log(`extractEmojis: ${e}`);
+		logger.info(`extractEmojis: ${e}`);
 		return [] as IEmoji[];
 	});
 
@@ -393,7 +393,7 @@ export async function updatePerson(uri: string, resolver?: Resolver, hint?: obje
 		multi: true
 	});
 
-	await updateFeatured(exist._id).catch(err => console.log(err));
+	await updateFeatured(exist._id).catch(err => logger.error(err));
 }
 
 /**
@@ -480,7 +480,7 @@ export async function updateFeatured(userId: mongo.ObjectID) {
 	if (!isRemoteUser(user)) return;
 	if (!user.featured) return;
 
-	log(`Updating the featured: ${user.uri}`);
+	logger.info(`Updating the featured: ${user.uri}`);
 
 	const resolver = new Resolver();
 

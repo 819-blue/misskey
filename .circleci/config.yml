@@ -44,8 +44,7 @@ jobs:
       - run:
           name: Install Dependencies
           command: |
-            npm install
-            npm prune
+            yarn install
       - run:
           name: Configure
           command: |
@@ -54,8 +53,6 @@ jobs:
       - run:
           name: Build
           command: |
-            yarn install
-            yarn autoclean
             yarn build
             touch yarn.lock
       - save_cache:
@@ -137,12 +134,14 @@ workflows:
               only:
                 - l10n_develop
                 - imgbot
+                - patch-autogen
       - build:
           filters:
             branches:
               ignore:
                 - l10n_develop
                 - imgbot
+                - patch-autogen
       - test:
           requires:
             - build
@@ -152,13 +151,20 @@ workflows:
 #                - master
                 - l10n_develop
                 - imgbot
+                - patch-autogen
       - test:
           without_redis: "true"
           requires:
             - build
           filters:
+#            branches:
+#              only: master
             branches:
-              only: master
+              ignore:
+#                - master
+                - l10n_develop
+                - imgbot
+                - patch-autogen
 #      - docker:
 #          filters:
 #            branches:

@@ -1,15 +1,18 @@
 import User, { isLocalUser, isRemoteUser, pack as packUser, IUser } from '../../models/user';
 import Following from '../../models/following';
 import Blocking from '../../models/blocking';
-import { publishMainStream } from '../../stream';
-import notify from '../../notify';
+import { publishMainStream } from '../stream';
+import notify from '../../services/create-notification';
 import { renderActivity } from '../../remote/activitypub/renderer';
 import renderFollow from '../../remote/activitypub/renderer/follow';
 import renderAccept from '../../remote/activitypub/renderer/accept';
 import renderReject from '../../remote/activitypub/renderer/reject';
 import { deliver } from '../../queue';
 import createFollowRequest from './requests/create';
-import perUserFollowingChart from '../../chart/per-user-following';
+import perUserFollowingChart from '../../services/chart/per-user-following';
+import { registerOrFetchInstanceDoc } from '../register-or-fetch-instance-doc';
+import Instance from '../../models/instance';
+import instanceChart from '../../services/chart/instance';
 
 export default async function(follower: IUser, followee: IUser, requestId?: string) {
 	// check blocking
@@ -95,6 +98,30 @@ export default async function(follower: IUser, followee: IUser, requestId?: stri
 			followersCount: 1
 		}
 	});
+	//#endregion
+
+	//#region Update instance stats
+	if (isRemoteUser(follower) && isLocalUser(followee)) {
+		registerOrFetchInstanceDoc(follower.host).then(i => {
+			Instance.update({ _id: i._id }, {
+				$inc: {
+					followingCount: 1
+				}
+			});
+
+			instanceChart.updateFollowing(i.host, true);
+		});
+	} else if (isLocalUser(follower) && isRemoteUser(followee)) {
+		registerOrFetchInstanceDoc(followee.host).then(i => {
+			Instance.update({ _id: i._id }, {
+				$inc: {
+					followersCount: 1
+				}
+			});
+
+			instanceChart.updateFollowers(i.host, true);
+		});
+	}
 	//#endregion
 
 	perUserFollowingChart.update(follower, followee, true);
